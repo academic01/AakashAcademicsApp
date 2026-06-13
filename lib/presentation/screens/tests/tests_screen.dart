@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
+import '../../../core/constants/gradients.dart';
 import '../../../core/utils/content_filter.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/services/database_service.dart';
@@ -83,78 +85,128 @@ class _TestsScreenState extends State<TestsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : const Color(0xFFF7F8FC);
+    final cardBgColor = isDark ? AppColors.darkCard : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0D2240);
+
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: const Text(
-          'Tests',
-          style: TextStyle(
-            color: Color(0xFF0D2240),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Redesigned stats header as side-by-side gradient stat cards
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.school,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppGradients.school.colors.first.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('📝', style: TextStyle(fontSize: 20)),
+                          SizedBox(height: 8),
+                          Text(
+                            '150+ Tests',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                          ),
+                          Text(
+                            'Curated Syllabus',
+                            style: TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      decoration: BoxDecoration(
+                        gradient: AppGradients.govtJobs,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppGradients.govtJobs.colors.first.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('🎯', style: TextStyle(fontSize: 20)),
+                          SizedBox(height: 8),
+                          Text(
+                            '94% Success',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                          ),
+                          Text(
+                            'Avg Student Score',
+                            style: TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Tab bar redesign with pill styling and gradient selection indicators
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              height: 40,
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                indicator: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D2240), Color(0xFF4F46E5)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: isDark ? Colors.white54 : const Color(0xFF6B7280),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
+              ),
+            ),
+
+            // Tests List View redone
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: _tabs.map((tab) => _buildTestsList(tab)).toList(),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '150+ Tests',
-                  style: AppTextStyles.labelLarge.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '94% Success',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: const Color(0xFF22C55E),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Category Tabs
-          TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            indicatorColor: const Color(0xFFF5A623),
-            indicatorWeight: 3,
-            labelColor: const Color(0xFF0D2240),
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-            unselectedLabelColor: const Color(0xFF888888),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            tabs: _tabs.map((tab) => Tab(text: tab, height: 44)).toList(),
-          ),
-          // Tests List
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: _tabs.map((tab) => _buildTestsList(tab)).toList(),
-            ),
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildTestsList(String tab) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBgColor = isDark ? AppColors.darkCard : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0D2240);
+
     return StreamBuilder<QuerySnapshot>(
       stream: _testStreams[tab],
       builder: (context, snapshot) {
@@ -171,7 +223,7 @@ class _TestsScreenState extends State<TestsScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.inbox, size: 64, color: Color(0xFFCCCCCC)),
+                const Icon(Icons.inbox_rounded, size: 64, color: Color(0xFFCCCCCC)),
                 const SizedBox(height: 16),
                 Text(
                   'No tests available',
@@ -188,166 +240,133 @@ class _TestsScreenState extends State<TestsScreen>
 
         return RefreshIndicator(
           onRefresh: () async {
-            // Trigger stream refresh by rebuilding
             setState(() {});
           },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: ListView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              itemCount: docs.length,
-              itemBuilder: (context, index) {
-                final testDoc = docs[index];
-                final test = testDoc.data() as Map<String, dynamic>;
-                final testId = testDoc.id;
+          child: ListView.builder(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final testDoc = docs[index];
+              final test = testDoc.data() as Map<String, dynamic>;
+              final testId = testDoc.id;
+              final category = test['category'] ?? 'school';
 
-                return GestureDetector(
-                  onTap: () => context.push('/tests/$testId'),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE5E7EB),
-                        width: 1,
+              final cardGrad = AppGradients.getGradientForCategory(category);
+              final emoji = AppGradients.getEmojiForCategory(category);
+
+              final isLocked = test['isLocked'] == true;
+
+              return GestureDetector(
+                onTap: () => context.push('/tests/$testId'),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: cardBgColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    child: Row(
-                      children: [
-                        // Icon Container
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(
-                              test['category'],
-                            ).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            _getCategoryIcon(test['category']),
-                            color: _getCategoryColor(test['category']),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        // Test Info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Title
-                              Text(
-                                test['title'] ?? 'Test',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF0D2240),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              // Details Row
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.timer_outlined,
-                                    size: 14,
-                                    color: const Color(
-                                      0xFF888888,
-                                    ).withOpacity(0.7),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${test['duration'] ?? 180} min',
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                      color: const Color(0xFF888888),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Icon(
-                                    Icons.help_outline,
-                                    size: 14,
-                                    color: const Color(
-                                      0xFF888888,
-                                    ).withOpacity(0.7),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${test['questions'] ?? 0} Q',
-                                    style: AppTextStyles.labelSmall.copyWith(
-                                      color: const Color(0xFF888888),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Right Arrow
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Color(0xFFF5A623),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                );
-              },
-            ),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Redesigned Gradient Emoji circular avatar icon
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: cardGrad,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: cardGrad.colors.first.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 22, fontFamily: 'Emoji'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Text Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              test['title'] ?? 'Test',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: primaryTextColor,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.timer_outlined, size: 13, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${test['duration'] ?? 180} min',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(width: 12),
+                                const Icon(Icons.quiz_outlined, size: 13, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${test['questions'] ?? 0} Qs',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Custom circular Play/Lock Action Icon
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: isLocked ? null : cardGrad,
+                          color: isLocked ? Colors.grey[200] : null,
+                          shape: BoxShape.circle,
+                          boxShadow: isLocked
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: cardGrad.colors.first.withOpacity(0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ],
+                        ),
+                        child: Icon(
+                          isLocked ? Icons.lock_outline_rounded : Icons.play_arrow_rounded,
+                          size: 18,
+                          color: isLocked ? Colors.grey : Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ).animate(delay: (index * 50).ms).fadeIn().slideY(begin: 0.08);
+            },
           ),
         );
       },
     );
-  }
-
-  Color _getCategoryColor(String? category) {
-    switch (category?.toLowerCase()) {
-      case 'cuet':
-        return const Color(0xFF7C3AED);
-      case 'boards':
-        return const Color(0xFF0D2240);
-      case 'govt':
-        return const Color(0xFF0891B2);
-      case 'jee':
-        return const Color(0xFFDC2626);
-      case 'neet':
-        return const Color(0xFF059669);
-      default:
-        return const Color(0xFF6366F1);
-    }
-  }
-
-  IconData _getCategoryIcon(String? category) {
-    switch (category?.toLowerCase()) {
-      case 'cuet':
-        return Icons.school;
-      case 'boards':
-        return Icons.calculate;
-      case 'govt':
-        return Icons.gavel;
-      case 'jee':
-        return Icons.bolt;
-      case 'neet':
-        return Icons.healing;
-      default:
-        return Icons.quiz;
-    }
   }
 }

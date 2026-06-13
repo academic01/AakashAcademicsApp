@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
@@ -15,21 +16,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        title: const Text(
+        backgroundColor: isDark ? AppColors.darkBackground : Colors.white,
+        title: Text(
           'Leaderboard',
           style: TextStyle(
-            color: Color(0xFF0D2240),
+            color: isDark ? Colors.white : const Color(0xFF0D2240),
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _dbService.getLeaderboard(),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _dbService.streamLeaderboard(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -95,12 +98,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   decoration: BoxDecoration(
                     color: position <= 3
                         ? medalColor.withOpacity(0.1)
-                        : Colors.white,
+                        : (isDark ? AppColors.darkCard : Colors.white),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: position <= 3
                           ? medalColor.withOpacity(0.3)
-                          : const Color(0xFFE5E7EB),
+                          : (isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB)),
                       width: 1,
                     ),
                   ),
@@ -140,14 +143,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: AppTextStyles.labelLarge.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0D2240),
+                                color: isDark ? Colors.white : const Color(0xFF0D2240),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               rank,
                               style: AppTextStyles.labelSmall.copyWith(
-                                color: const Color(0xFF888888),
+                                color: isDark ? AppColors.textMutedDark : const Color(0xFF888888),
                               ),
                             ),
                           ],
@@ -161,7 +164,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                             '$xp XP',
                             style: AppTextStyles.labelLarge.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                              color: isDark ? AppColors.secondary : AppColors.primary,
                             ),
                           ),
                           const SizedBox(height: 2),

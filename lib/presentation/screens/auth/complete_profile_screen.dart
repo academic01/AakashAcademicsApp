@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/services/student_profile_service.dart';
+import '../../../data/services/user_service.dart';
 import '../../../providers/user_provider.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -149,6 +150,19 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   void _skipProfile() async {
+    try {
+      await UserService().skipProfile();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('profileComplete', false);
     await prefs.setBool('profileSkipped', true);
@@ -197,6 +211,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      await UserService().saveProfile(
+        name: _nameController.text.trim(),
+        schoolCollege: _schoolController.text,
+        currentClass: _selectedClass!,
+        targetCourse: _selectedCourse!,
+        targetExam: _selectedExam ?? '',
+      );
+
       final prefs = await SharedPreferences.getInstance();
 
       await prefs.setBool('profileComplete', true);

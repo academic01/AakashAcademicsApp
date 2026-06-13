@@ -95,20 +95,37 @@ class DatabaseService {
 
   // Get all courses (filtered)
   Future<List<Map<String, dynamic>>> getCourses({String? category}) async {
-    Query query = _db
-        .collection('courses')
-        .where('status', whereIn: ['active', 'coming_soon'])
-        .orderBy('isFeatured', descending: true)
-        .orderBy('createdAt', descending: true);
+    Query query = _db.collection('courses');
 
     if (category != null && category != 'all') {
       query = query.where('category', isEqualTo: category);
     }
 
     final snapshot = await query.get();
-    return snapshot.docs
+    final list = snapshot.docs
         .map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id})
+        .where((c) {
+          final status = c['status'];
+          return status == 'active' || status == 'coming_soon';
+        })
         .toList();
+
+    // Sort in memory: isFeatured (descending), then createdAt (descending)
+    list.sort((a, b) {
+      final aFeatured = a['isFeatured'] == true ? 1 : 0;
+      final bFeatured = b['isFeatured'] == true ? 1 : 0;
+      if (aFeatured != bFeatured) {
+        return bFeatured.compareTo(aFeatured);
+      }
+      final aTime = a['createdAt'] as Timestamp?;
+      final bTime = b['createdAt'] as Timestamp?;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+
+    return list;
   }
 
   // Get single course
@@ -120,11 +137,7 @@ class DatabaseService {
 
   // Stream courses
   Stream<QuerySnapshot> streamCourses({String? category}) {
-    Query query = _db
-        .collection('courses')
-        .where('status', whereIn: ['active', 'coming_soon'])
-        .orderBy('isFeatured', descending: true)
-        .orderBy('createdAt', descending: true);
+    Query query = _db.collection('courses');
 
     if (category != null && category != 'all') {
       query = query.where('category', isEqualTo: category);
@@ -351,6 +364,54 @@ class DatabaseService {
           },
         )
         .toList();
+  }
+
+  // Stream leaderboard (real-time updates)
+  Stream<List<Map<String, dynamic>>> streamLeaderboard() {
+    return _db
+        .collection('users')
+        .where('isActive', isEqualTo: true)
+        .orderBy('xp', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .asMap()
+            .entries
+            .map((e) => {
+                  ...e.value.data(),
+                  'position': e.key + 1,
+                })
+            .toList());
+  }
+
+  // Stream user test results count
+  Stream<int> streamTestResultsCount(String userId) {
+    return _db
+        .collection('testResults')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) => snap.docs.length);
+  }
+
+  // Stream user enrollments count
+  Stream<int> streamEnrollmentsCount(String userId) {
+    return _db
+        .collection('enrollments')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snap) => snap.docs.length);
+  }
+
+  // Stream featured courses (for home screen)
+  Stream<List<Map<String, dynamic>>> streamFeaturedCourses() {
+    return _db
+        .collection('courses')
+        .where('status', isEqualTo: 'active')
+        .where('isFeatured', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((d) => {...d.data(), 'id': d.id})
+            .toList());
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class TestResultScreen extends StatefulWidget {
   final String resultId;
@@ -10,106 +12,155 @@ class TestResultScreen extends StatefulWidget {
 }
 
 class _TestResultScreenState extends State<TestResultScreen> {
+  Map<String, dynamic>? _resultData;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadResultData();
+  }
+
+  Future<void> _loadResultData() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('testResults').doc(widget.resultId).get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _resultData = doc.data();
+          _loading = false;
+        });
+      } else {
+        if (mounted) setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _formatTime(int totalSeconds) {
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '${m}m ${s}s';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_resultData == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Test Result')),
+        body: const Center(
+          child: Text('Test result document not found.'),
+        ),
+      );
+    }
+
+    final testTitle = _resultData!['testTitle'] ?? 'Test Result';
+    final score = _resultData!['score'] ?? 0;
+    final totalMarks = _resultData!['totalMarks'] ?? 0;
+    final percentage = _resultData!['percentage'] ?? 0;
+    final xpEarned = _resultData!['xpEarned'] ?? 50;
+    final timeTaken = _resultData!['timeTakenSeconds'] ?? 0;
+    final wrongAnswers = totalMarks - score;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Test Result')),
+      appBar: AppBar(title: Text(testTitle)),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const SizedBox(height: 12),
+            Text(
+              testTitle,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0D2240)),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             // Score circle
             Container(
-              width: 200,
-              height: 200,
+              width: 180,
+              height: 180,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF0D2240), width: 4),
+                border: Border.all(
+                  color: percentage >= 70 ? const Color(0xFF22C55E) : const Color(0xFF0D2240),
+                  width: 6,
+                ),
               ),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '87.5',
+                      '$percentage%',
                       style: TextStyle(
-                        fontSize: 48,
+                        fontSize: 40,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D2240),
+                        color: percentage >= 70 ? const Color(0xFF22C55E) : const Color(0xFF0D2240),
                       ),
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      'out of 100',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+                      '$score / $totalMarks Marks',
+                      style: const TextStyle(fontSize: 14, color: Color(0xFF888888), fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 32),
-            // Result details
-            _buildResultTile('Total Questions', '100'),
-            _buildResultTile('Correct Answers', '87'),
-            _buildResultTile('Wrong Answers', '10'),
-            _buildResultTile('Unanswered', '3'),
-            const SizedBox(height: 24),
-            // Rank and percentile
+            
+            // Result statistics card
             Container(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(20.0),
               decoration: BoxDecoration(
                 color: const Color(0xFFF9F9F9),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black12),
               ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Your Rank'),
-                      Text(
-                        '245/1000',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Percentile'),
-                      Text(
-                        '75.5%',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildResultRow('Correct Answers', '$score', Colors.green),
+                  const Divider(),
+                  _buildResultRow('Incorrect Answers', '$wrongAnswers', Colors.red),
+                  const Divider(),
+                  _buildResultRow('Time Taken', _formatTime(timeTaken), Colors.black87),
+                  const Divider(),
+                  _buildResultRow('XP Earned', '+$xpEarned XP', const Color(0xFFF5A623)),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            // Action buttons
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: View solutions
-              },
-              icon: const Icon(Icons.description),
-              label: const Text('View Solutions'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Retake test
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retake Test'),
+            const SizedBox(height: 32),
+            
+            // Back button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.go('/tests');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D2240),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                ),
+                child: const Text(
+                  'Back to Tests',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -117,7 +168,7 @@ class _TestResultScreenState extends State<TestResultScreen> {
     );
   }
 
-  Widget _buildResultTile(String label, String value) {
+  Widget _buildResultRow(String label, String value, Color valueColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -125,11 +176,11 @@ class _TestResultScreenState extends State<TestResultScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF888888)),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF666666), fontWeight: FontWeight.w500),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: valueColor),
           ),
         ],
       ),

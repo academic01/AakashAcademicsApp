@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/user_model.dart';
 import '../core/constants/app_constants.dart';
@@ -8,17 +10,55 @@ class UserProvider extends ChangeNotifier {
   UserModel? _user;
   bool _isLoading = false;
   bool _isProfileComplete = false;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   bool get isProfileComplete => _isProfileComplete;
   bool get isLoggedIn => _user != null;
 
-  // Called after login success
+  // Called after login success — sets user and starts Firestore listener
   void setUser(UserModel user) {
     _user = user;
     _isProfileComplete = user.isProfileComplete;
     notifyListeners();
+    // Start listening to Firestore for real-time updates
+    _startFirestoreListener(user.uid);
+  }
+
+  // Start real-time Firestore listener for user document
+  void _startFirestoreListener(String uid) {
+    _userSubscription?.cancel();
+    _userSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || snapshot.data() == null) return;
+
+      final data = snapshot.data()!;
+
+      // Update user model with live Firestore data
+      if (_user != null) {
+        _user = _user!.copyWith(
+          xp: data['xp'] ?? _user!.xp,
+          streak: data['streak'] ?? _user!.streak,
+          rank: data['rank'] ?? _user!.rank,
+          name: data['name'] ?? _user!.name,
+          email: data['email'] ?? _user!.email,
+          enrolledCourses: data['enrolledCourses'] != null
+              ? List<String>.from(data['enrolledCourses'])
+              : _user!.enrolledCourses,
+          isProfileComplete:
+              data['isProfileComplete'] ?? _user!.isProfileComplete,
+        );
+        _isProfileComplete = _user!.isProfileComplete;
+        notifyListeners();
+        _saveToPrefs();
+      }
+    }, onError: (error) {
+      debugPrint('Firestore user listener error: $error');
+    });
   }
 
   // Called after profile form submit
@@ -72,6 +112,8 @@ class UserProvider extends ChangeNotifier {
       if (userData != null && token != null) {
         _user = UserModel.fromJson(jsonDecode(userData));
         _isProfileComplete = _user!.isProfileComplete;
+        // Start Firestore listener to get real-time updates
+        _startFirestoreListener(_user!.uid);
       }
     } catch (e) {
       debugPrint('Error loading user from prefs: $e');
@@ -104,6 +146,10 @@ class UserProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     try {
+      // Cancel Firestore listener
+      _userSubscription?.cancel();
+      _userSubscription = null;
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user');
       await prefs.remove('token');
@@ -132,5 +178,11 @@ class UserProvider extends ChangeNotifier {
       return 'Student';
     }
     return _user!.name!.split(' ').first;
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
   }
 }

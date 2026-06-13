@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/user_service.dart';
 import '../../../providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -169,6 +170,21 @@ class _LoginScreenState extends State<LoginScreen> {
       final userCredential = await FirebaseAuth.instance.signInWithCredential(
         credential,
       );
+      final firebaseUser = userCredential.user;
+      if (firebaseUser != null) {
+        try {
+          await UserService().ensureUserDocument(firebaseUser);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to initialize user document: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? true;
 
       final prefs = await SharedPreferences.getInstance();
@@ -225,6 +241,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result['success'] == true) {
       final user = result['user'];
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        try {
+          await UserService().ensureUserDocument(firebaseUser);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to initialize user document: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
       context.read<UserProvider>().setUser(user);
       _goAfterAuth(user.isProfileComplete);
       return;

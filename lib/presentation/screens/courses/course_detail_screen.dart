@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../data/services/database_service.dart';
+import '../../../data/services/user_service.dart';
 import '../../../providers/user_provider.dart';
 
 class CourseDetailScreen extends StatefulWidget {
@@ -14,6 +15,31 @@ class CourseDetailScreen extends StatefulWidget {
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  Map<String, dynamic>? _courseData;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCourse();
+  }
+
+  Future<void> _loadCourse() async {
+    try {
+      final data = await DatabaseService().getCourseById(widget.courseId);
+      if (mounted) {
+        setState(() {
+          _courseData = data;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   Future<void> _handleEnroll() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final user = userProvider.user;
@@ -45,24 +71,48 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       return;
     }
 
-    final success = await DatabaseService().enrollInCourse(user.uid, widget.courseId);
+    if (_courseData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Course data not loaded. Please wait.')),
+      );
+      return;
+    }
 
-    if (!mounted) return;
-    if (success) {
+    try {
+      final title = _courseData!['title'] ?? 'Course';
+      final price = (_courseData!['price'] as num?)?.toDouble() ?? 0.0;
+
+      await UserService().enrollInCourse(
+        courseId: widget.courseId,
+        courseTitle: title,
+        paymentAmount: price,
+      );
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Course enrolled successfully.')),
       );
-    } else {
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to enroll. Please try again.')),
+        SnackBar(content: Text('Failed to enroll: ${e.toString()}')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final title = _courseData?['title'] ?? 'Course Detail';
+    final description = _courseData?['description'] ?? 'No description available.';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Course Details')),
+      appBar: AppBar(title: Text(title)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,7 +123,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               color: const Color(0xFF0D2240),
               child: Center(
                 child: Text(
-                  'Course: ${widget.courseId}',
+                  title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -89,14 +139,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Course Title',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Course Description',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF888888)),
+                  Text(
+                    description,
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF888888)),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
