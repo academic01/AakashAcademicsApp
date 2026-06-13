@@ -49,24 +49,36 @@ class _BottomNavBarState extends State<BottomNavBar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      extendBody: true, // Allow body to extend behind the floating nav bar
       body: widget.child,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowMedium,
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          height: 66,
+          decoration: BoxDecoration(
+            color: isDark 
+                ? AppColors.darkCard.withOpacity(0.9) 
+                : Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isDark 
+                  ? AppColors.darkBorder.withOpacity(0.6) 
+                  : AppColors.border.withOpacity(0.6),
+              width: 1.5,
             ),
-          ],
-        ),
-        child: BottomAppBar(
-          elevation: 0,
-          color: Colors.transparent,
-          padding: EdgeInsets.zero,
-          height: 60,
+            boxShadow: [
+              BoxShadow(
+                color: isDark 
+                    ? Colors.black.withOpacity(0.3) 
+                    : AppColors.primary.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -88,6 +100,7 @@ class _BottomNavBarState extends State<BottomNavBar> {
     return Expanded(
       child: GestureDetector(
         onTap: () => _onItemTapped(index),
+        behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -98,15 +111,17 @@ class _BottomNavBarState extends State<BottomNavBar> {
               isSelected: isSelected,
               onTap: () => _onItemTapped(index),
             ),
-            // Yellow indicator dot
+            const SizedBox(height: 3),
+            // Accent indicator bar
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              height: 3,
-              width: isSelected ? 24 : 0,
-              margin: const EdgeInsets.only(top: 4),
+              height: 3.5,
+              width: isSelected ? 18 : 0,
               decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(1.5),
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? AppColors.secondary 
+                    : AppColors.primary,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ],
@@ -138,27 +153,18 @@ class _AnimatedNavItemState extends State<AnimatedNavItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<Color?> _colorAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-
-    _colorAnimation =
-        ColorTween(begin: AppColors.textMuted, end: AppColors.primary).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeInOut,
-          ),
-        );
 
     if (widget.isSelected) {
       _animationController.forward();
@@ -185,37 +191,36 @@ class _AnimatedNavItemState extends State<AnimatedNavItem>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.icon,
-                  color: _colorAnimation.value ?? AppColors.textMuted,
-                  size: 24,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? AppColors.secondary : AppColors.primary;
+    final inactiveColor = isDark ? AppColors.textMutedDark : AppColors.textMuted;
+
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                color: widget.isSelected ? activeColor : inactiveColor,
+                size: 23,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: widget.isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: widget.isSelected ? activeColor : inactiveColor,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    color: _colorAnimation.value ?? AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

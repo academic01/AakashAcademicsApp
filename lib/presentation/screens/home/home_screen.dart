@@ -2,6 +2,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/colors.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/services/student_profile_service.dart';
 import '../../../providers/user_provider.dart';
@@ -63,29 +64,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final progress = xp / nextLevelXP;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : AppColors.primary;
+    final secondaryTextColor = isDark ? AppColors.textMutedDark : AppColors.textMuted;
+    final cardBgColor = isDark ? AppColors.darkCard : Colors.white;
+    final borderCol = isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: _refreshDashboard,
-        color: const Color(0xFF0D2240),
+        color: isDark ? AppColors.secondary : AppColors.primary,
         child: CustomScrollView(
           slivers: [
             // SLIVER 1 - Custom AppBar
             SliverAppBar(
               floating: true,
               snap: true,
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               elevation: 0,
               toolbarHeight: 82,
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Good Morning! 🌟',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF888888),
+                      color: secondaryTextColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -94,14 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0D2240),
+                      color: primaryTextColor,
                     ),
                   ),
                   Text(
                     studentCourse,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF888888),
+                      color: secondaryTextColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -111,9 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Stack(
                   children: [
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.notifications_none,
-                        color: Color(0xFF0D2240),
+                        color: primaryTextColor,
                       ),
                       onPressed: () {},
                     ),
@@ -133,11 +139,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 CircleAvatar(
-                  backgroundColor: const Color(0xFF0D2240),
+                  backgroundColor: isDark ? AppColors.secondary : AppColors.primary,
                   child: Text(
                     studentInitial,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isDark ? AppColors.darkBackground : Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -203,15 +209,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cardBgColor,
                           border: Border.all(
-                            color: const Color(0xFFE5E7EB),
+                            color: borderCol,
                             width: 1,
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF000000).withOpacity(0.05),
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -222,35 +228,38 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.flash_on,
-                                  color: Color(0xFF0D2240),
+                                  color: isDark ? AppColors.secondary : AppColors.primary,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 6),
-                                const Text(
+                                Text(
                                   'XP Points',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF0D2240),
+                                    color: primaryTextColor,
                                   ),
                                 ),
                                 const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
+                                    vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF08A),
+                                    color: isDark 
+                                        ? AppColors.secondary.withOpacity(0.2) 
+                                        : const Color(0xFFFEF08A),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     rank,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFFF5A623),
+                                      color: isDark ? AppColors.secondary : const Color(0xFFF5A623),
                                     ),
                                   ),
                                 ),
@@ -263,18 +272,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text(
                                   xp.toString(),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0D2240),
+                                    color: primaryTextColor,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '/ $nextLevelXP XP',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF888888),
+                                    color: secondaryTextColor,
                                   ),
                                 ),
                               ],
@@ -285,9 +294,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: LinearProgressIndicator(
                                 value: progress.clamp(0.0, 1.0),
                                 minHeight: 6,
-                                backgroundColor: const Color(0xFFE5E7EB),
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF0D2240),
+                                backgroundColor: isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  isDark ? AppColors.secondary : AppColors.primary,
                                 ),
                               ),
                             ),
@@ -302,15 +311,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFEF3C7),
-                              const Color(0xFFFDE68A).withOpacity(0.5),
-                            ],
+                            colors: isDark 
+                                ? [AppColors.secondary.withOpacity(0.15), AppColors.darkCard]
+                                : [const Color(0xFFFEF3C7), const Color(0xFFFDE68A).withOpacity(0.5)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           border: Border.all(
-                            color: const Color(0xFFF5A623),
+                            color: AppColors.secondary,
                             width: 1.5,
                           ),
                           borderRadius: BorderRadius.circular(16),
@@ -322,26 +330,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 8),
                             Text(
                               'Day $streak',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFFEA580C),
+                                color: isDark ? AppColors.secondary : const Color(0xFFEA580C),
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Streak!',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFFEA580C),
+                                color: isDark ? AppColors.secondary : const Color(0xFFEA580C),
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
+                            Text(
                               'Don\'t break it!',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF888888),
+                                color: secondaryTextColor,
                               ),
                             ),
                           ],
@@ -818,15 +826,20 @@ class _HomeScreenState extends State<HomeScreen> {
     required String value,
     required String label,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        color: isDark ? AppColors.darkCard : Colors.white,
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF000000).withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -839,26 +852,30 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: (isDark ? AppColors.secondary : iconColor).withOpacity(0.1),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(
+              icon,
+              color: isDark ? AppColors.secondary : iconColor,
+              size: 24,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 22,
+            style: TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF0D2240),
+              color: isDark ? Colors.white : AppColors.primary,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: Color(0xFF888888),
+              color: isDark ? AppColors.textMutedDark : const Color(0xFF888888),
               letterSpacing: 0.5,
             ),
           ),
@@ -942,18 +959,22 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     final course = courses[index];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () => context.go('/courses/detail/course_$index'),
       child: Container(
         width: 160,
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          color: isDark ? AppColors.darkCard : Colors.white,
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB),
+            width: 1,
+          ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF000000).withOpacity(0.05),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -987,10 +1008,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     course['title']!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0D2240),
+                      color: isDark ? Colors.white : AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1013,9 +1034,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 2),
                       Text(
                         '${course['rating']} (${course['students']})',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
-                          color: Color(0xFF888888),
+                          color: isDark ? AppColors.textMutedDark : const Color(0xFF888888),
                         ),
                       ),
                     ],
