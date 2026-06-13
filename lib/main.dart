@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'firebase_options.dart';
 import 'providers/user_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   // MUST be first line
@@ -49,6 +50,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()..loadFromPrefs()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: initializationError == null
           ? const MyApp()

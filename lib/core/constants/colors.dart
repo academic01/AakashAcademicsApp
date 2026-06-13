@@ -6,9 +6,17 @@ class AppColors {
   static const Color secondary = Color(0xFFF5A623); // Orange
   static const Color background = Colors.white;
 
+  // Dark Theme Colors
+  static const Color darkBackground = Color(0xFF0A1628); // Deep Navy
+  static const Color darkCard = Color(0xFF132238); // Dark Navy Surface
+  static const Color darkBorder = Color(0xFF1F324E); // Navy Border
+  static const Color darkDivider = Color(0xFF1F324E);
+
   // Text Colors
   static const Color textDark = Color(0xFF0A0A0A);
+  static const Color textLight = Colors.white;
   static const Color textMuted = Color(0xFF888888);
+  static const Color textMutedDark = Color(0xFF90A4AE);
 
   // Surface Colors
   static const Color card = Color(0xFFF9F9F9);
@@ -36,6 +44,12 @@ class AppColors {
 
   static const Gradient secondaryGradient = LinearGradient(
     colors: [Color(0xFFF5A623), Color(0xFFE89E0E)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const Gradient darkGradient = LinearGradient(
+    colors: [Color(0xFF0A1628), Color(0xFF070F1C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

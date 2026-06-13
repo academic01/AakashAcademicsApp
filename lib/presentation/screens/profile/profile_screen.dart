@@ -12,6 +12,7 @@ import '../../../data/models/student_profile.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/student_profile_service.dart';
 import '../../../providers/user_provider.dart';
+import '../../../providers/theme_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -555,17 +556,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMenuSection() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     final menuItems = [
       MenuItemData(
         icon: Iconsax.book_saved,
-        iconColor: AppColors.primary,
+        iconColor: isDark ? AppColors.secondary : AppColors.primary,
         title: 'My Courses',
         subtitle: _profile?.selectedCourse ?? 'View enrolled courses',
         onTap: () => context.go('/courses'),
       ),
       MenuItemData(
-        icon: Iconsax.import,
+        icon: isDark ? Iconsax.sun_1 : Iconsax.moon,
         iconColor: const Color(0xFF7C3AED),
+        title: 'Theme Mode',
+        subtitle: isDark ? 'Dark Mode' : 'Light Mode',
+        onTap: () {
+          themeProvider.toggleTheme(!isDark);
+        },
+      ),
+      MenuItemData(
+        icon: Iconsax.import,
+        iconColor: const Color(0xFF22C55E),
         title: 'Downloads',
         subtitle: 'Offline content',
         onTap: () => context.go('/downloads'),
@@ -579,7 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       MenuItemData(
         icon: Iconsax.gift,
-        iconColor: const Color(0xFF22C55E),
+        iconColor: const Color(0xFF0891B2),
         title: 'Refer & Earn',
         subtitle: 'Earn rewards',
         onTap: () => _showShareDialog(),
@@ -618,7 +631,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               'Account',
               style: GoogleFonts.nunito(
-                color: const Color(0xFF888888),
+                color: isDark ? AppColors.textMutedDark : const Color(0xFF888888),
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
                 letterSpacing: 1.5,
@@ -632,17 +645,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMenuItem(MenuItemData item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: item.isLogout
             ? const Color(0xFFDC2626).withOpacity(0.05)
-            : Colors.white,
+            : (isDark ? AppColors.darkCard : Colors.white),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: item.isLogout
               ? const Color(0xFFDC2626).withOpacity(0.2)
-              : const Color(0xFFE5E7EB),
+              : (isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB)),
           width: 1,
         ),
       ),
@@ -663,7 +677,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: GoogleFonts.nunito(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: item.isLogout ? const Color(0xFFDC2626) : AppColors.primary,
+            color: item.isLogout 
+                ? const Color(0xFFDC2626) 
+                : (isDark ? Colors.white : AppColors.primary),
           ),
         ),
         subtitle: Text(
@@ -672,13 +688,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontSize: 11,
             color: item.isLogout
                 ? const Color(0xFFDC2626).withOpacity(0.6)
-                : const Color(0xFF888888),
+                : (isDark ? AppColors.textMutedDark : const Color(0xFF888888)),
           ),
         ),
         trailing: Icon(
           Iconsax.arrow_right_3,
           size: 18,
-          color: const Color(0xFF888888),
+          color: isDark ? AppColors.textMutedDark : const Color(0xFF888888),
         ),
       ),
     );
