@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../core/constants/gradients.dart';
@@ -8,6 +9,7 @@ import '../../../core/utils/content_filter.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/services/database_service.dart';
 import '../../../data/services/student_profile_service.dart';
+import '../../../providers/user_provider.dart';
 import '../../widgets/redesigned_course_card.dart';
 
 class CoursesScreen extends StatefulWidget {
@@ -51,13 +53,25 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   Future<void> _loadUserProfile() async {
     try {
-      final profile = await _studentProfileService.loadProfile();
-      if (profile == null) return;
+      String? targetCourse;
+      String? targetExam;
 
-      final category = getCategoryFromProfile(
-        profile.selectedCourse,
-        profile.classLevel,
-      );
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final user = userProvider.user;
+      if (user != null) {
+        targetCourse = user.targetCourse;
+        targetExam = user.targetExam;
+      } else {
+        final profile = await _studentProfileService.loadProfile();
+        if (profile != null) {
+          targetCourse = profile.selectedCourse;
+          targetExam = profile.classLevel;
+        }
+      }
+
+      if (targetCourse == null && targetExam == null) return;
+
+      final category = getCategoryFromProfile(targetCourse, targetExam);
       if (category == null) return;
 
       final normalized = category.toLowerCase();

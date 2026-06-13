@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/gradients.dart';
+import '../../../core/utils/content_filter.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/services/database_service.dart';
 import '../../../data/services/student_profile_service.dart';
@@ -347,7 +348,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
 
-                  final courses = snapshot.data ?? [];
+                  var courses = snapshot.data ?? [];
+
+                  final userCategory = getCategoryFromProfile(user?.targetCourse, user?.targetExam);
+                  if (userCategory != null) {
+                    courses = courses.where((c) {
+                      final category = (c['category'] ?? '').toString().toLowerCase();
+                      if (userCategory == 'senior') {
+                        return category == 'senior' || category == 'boards';
+                      }
+                      return category == userCategory;
+                    }).toList();
+                  }
 
                   if (courses.isEmpty) {
                     return SliverToBoxAdapter(
@@ -358,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Center(
-                          child: Text('No featured courses available right now'),
+                          child: Text('No featured courses matching your profile goals'),
                         ),
                       ),
                     );

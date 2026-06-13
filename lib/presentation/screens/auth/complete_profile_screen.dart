@@ -150,9 +150,26 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   }
 
   void _skipProfile() async {
+    if (_phoneController.text.length != 10) {
+      _showError('Please enter a valid 10-digit mobile number before skipping');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
     try {
-      await UserService().skipProfile();
+      final enteredPhone = '+91${_phoneController.text}';
+      final isRegistered = await _isPhoneAlreadyRegistered(enteredPhone);
+      if (isRegistered) {
+        setState(() => _isSubmitting = false);
+        _showAlreadyRegisteredDialog();
+        return;
+      }
+
+      await UserService().savePhoneAndSkip(phone: enteredPhone);
+      setState(() => _isSubmitting = false);
     } catch (e) {
+      setState(() => _isSubmitting = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -161,6 +178,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           ),
         );
       }
+      return;
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -211,12 +229,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final enteredPhone = '+91${_phoneController.text}';
+      final isRegistered = await _isPhoneAlreadyRegistered(enteredPhone);
+      if (isRegistered) {
+        setState(() => _isSubmitting = false);
+        _showAlreadyRegisteredDialog();
+        return;
+      }
+
       await UserService().saveProfile(
         name: _nameController.text.trim(),
         schoolCollege: _schoolController.text,
         currentClass: _selectedClass!,
         targetCourse: _selectedCourse!,
         targetExam: _selectedExam ?? '',
+        phone: enteredPhone,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -284,6 +311,55 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         content: Text(message),
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<bool> _isPhoneAlreadyRegistered(String enteredPhone) async {
+    final currentUser = context.read<UserProvider>().user;
+    final currentUid = currentUser?.uid;
+
+    final query = await FirebaseFirestore.instance
+        .collection('users')
+        .where('phone', isEqualTo: enteredPhone)
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      final existingUid = query.docs.first.id;
+      if (existingUid != currentUid) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _showAlreadyRegisteredDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Phone Already Registered'),
+        content: const Text(
+          'This phone number is already registered. Please login using Phone OTP instead.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final userProvider = context.read<UserProvider>();
+              await userProvider.logout();
+              await SharedPreferences.getInstance().then((prefs) {
+                prefs.clear();
+              });
+              if (mounted) {
+                context.go('/login');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D2240)),
+            child: const Text('Go to Login'),
+          ),
+        ],
       ),
     );
   }

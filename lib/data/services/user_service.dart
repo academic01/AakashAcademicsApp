@@ -4,6 +4,31 @@ import 'package:firebase_auth/firebase_auth.dart';
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  Future<String> resolveCanonicalUid(User firebaseUser) async {
+    final phone = firebaseUser.phoneNumber;
+    
+    if (phone == null) {
+      // Google sign-in with no phone linked yet — use Firebase UID as-is
+      return firebaseUser.uid;
+    }
+    
+    // Check if a user document ALREADY exists with this phone number under a DIFFERENT uid
+    final query = await _firestore
+      .collection('users')
+      .where('phone', isEqualTo: phone)
+      .limit(1)
+      .get();
+    
+    if (query.docs.isNotEmpty) {
+      final existingUid = query.docs.first.id;
+      if (existingUid != firebaseUser.uid) {
+        return existingUid;
+      }
+    }
+    
+    return firebaseUser.uid;
+  }
+
   Future<void> ensureUserDocument(User firebaseUser) async {
     final ref = _firestore.collection('users').doc(firebaseUser.uid);
     final snapshot = await ref.get();
@@ -77,10 +102,11 @@ class UserService {
     required String currentClass,
     required String targetCourse,
     required String targetExam,
+    String? phone,
   }) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     
-    await _firestore.collection('users').doc(uid).update({
+    final Map<String, dynamic> updates = {
       'name': name,
       'schoolCollege': schoolCollege,
       'currentClass': currentClass,
@@ -88,12 +114,27 @@ class UserService {
       'targetExam': targetExam,
       'isProfileComplete': true,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (phone != null) {
+      updates['phone'] = phone;
+    }
+    
+    await _firestore.collection('users').doc(uid).update(updates);
   }
 
   Future<void> skipProfile() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     await _firestore.collection('users').doc(uid).update({
+      'isProfileComplete': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> savePhoneAndSkip({required String phone}) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    await _firestore.collection('users').doc(uid).update({
+      'phone': phone,
       'isProfileComplete': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });

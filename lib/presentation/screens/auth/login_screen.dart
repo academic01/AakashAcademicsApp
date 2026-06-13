@@ -244,6 +244,14 @@ class _LoginScreenState extends State<LoginScreen> {
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
         try {
+          final canonicalUid = await UserService().resolveCanonicalUid(firebaseUser);
+          if (canonicalUid != firebaseUser.uid) {
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              _showMismatchDialog(firebaseUser.phoneNumber ?? '');
+            }
+            return;
+          }
           await UserService().ensureUserDocument(firebaseUser);
         } catch (e) {
           if (mounted) {
@@ -264,6 +272,41 @@ class _LoginScreenState extends State<LoginScreen> {
     _showSnackBar(
       (result['error'] as String?) ?? 'Google sign-in failed.',
       isError: true,
+    );
+  }
+
+  void _showMismatchDialog(String rawPhone) {
+    String masked = rawPhone;
+    if (rawPhone.length >= 10) {
+      masked = rawPhone.replaceRange(rawPhone.length - 8, rawPhone.length - 2, '******');
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Account Exists'),
+        content: Text('We found an existing account with this phone number ($masked). Sign in with OTP instead to access your saved progress, courses, and XP.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              setState(() {
+                _otpSent = false;
+                String localPhone = rawPhone.replaceAll('+91', '');
+                _phoneController.text = localPhone;
+              });
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D2240)),
+            child: const Text('Use Phone OTP Instead'),
+          ),
+        ],
+      ),
     );
   }
 
