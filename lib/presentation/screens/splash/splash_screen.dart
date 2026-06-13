@@ -6,7 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../widgets/academy_logo.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -24,9 +24,11 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
 
       final prefs = await SharedPreferences.getInstance();
-      final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-      final profileComplete = prefs.getBool('profileComplete') ?? false;
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+      final isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
+      final profileComplete =
+          prefs.getBool(StorageKeys.profileComplete) ?? false;
+      final onboardingComplete =
+          prefs.getBool(StorageKeys.onboardingComplete) ?? false;
 
       if (!onboardingComplete) {
         context.go('/onboarding');

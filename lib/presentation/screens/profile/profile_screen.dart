@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../data/models/student_profile.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../data/services/student_profile_service.dart';
+import '../../../providers/user_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -91,7 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.only(top: 32, left: 24, right: 24, bottom: 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, const Color(0xFF0A1A2E)],
+          colors: [AppColors.primary, const Color(0xFF1a3a6b)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -136,11 +141,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 alignment: Alignment.center,
                 children: [
                   CircleAvatar(
-                    radius: 45,
+                    radius: 48,
                     backgroundColor: Colors.white.withOpacity(0.15),
                     child: Text(
                       studentInitial,
-                      style: const TextStyle(
+                      style: GoogleFonts.nunito(
                         color: Colors.white,
                         fontSize: 32,
                         fontWeight: FontWeight.w800,
@@ -165,9 +170,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: const Color(0xFFF5A623),
                         ),
                         child: const Icon(
-                          Icons.edit,
+                          Iconsax.camera_slash,
                           color: Colors.white,
-                          size: 16,
+                          size: 15,
                         ),
                       ),
                     ),
@@ -178,29 +183,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Student name
               Text(
                 studentName,
-                style: const TextStyle(
+                style: GoogleFonts.nunito(
                   color: Colors.white,
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 4),
               // Class badge
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                  horizontal: 18,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(50),
                 ),
                 child: Text(
                   studentClass,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                  style: GoogleFonts.nunito(
+                    color: Colors.white.withOpacity(0.85),
                     fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.normal,
                   ),
                 ),
               ),
@@ -221,40 +226,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Row(
                       children: [
                         Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5A623).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Iconsax.medal_star,
+                            color: Color(0xFFF5A623),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Scholar Rank',
+                              style: GoogleFonts.nunito(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '$currentXP / $totalXP XP',
+                              style: GoogleFonts.nunito(
+                                color: Colors.white.withOpacity(0.65),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
+                            horizontal: 12,
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF5A623),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            '⭐ #42',
-                            style: TextStyle(
-                              color: Colors.white,
+                          child: Text(
+                            'Level 4',
+                            style: GoogleFonts.nunito(
+                              color: const Color(0xFF0D2240),
+                              fontWeight: FontWeight.bold,
                               fontSize: 12,
-                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '$currentXP / $totalXP XP',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(5),
                       child: LinearProgressIndicator(
                         value: xpProgress,
-                        minHeight: 6,
+                        minHeight: 8,
                         backgroundColor: Colors.white.withOpacity(0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           const Color(0xFFF5A623),
@@ -277,42 +308,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildStatCard('📚', enrolledCourses.toString(), 'Courses'),
-          _buildStatCard('📝', testsAttempted.toString(), 'Tests'),
-          _buildStatCard('⏱️', '$studyHours hrs', 'Hours'),
-          _buildStatCard('🏅', rank.toString(), 'Rank'),
+          _buildStatCard(
+            Iconsax.book_saved,
+            const Color(0xFF0D2240),
+            enrolledCourses.toString(),
+            'Courses',
+          ),
+          _buildStatCard(
+            Iconsax.clipboard_text,
+            const Color(0xFF7C3AED),
+            testsAttempted.toString(),
+            'Tests',
+          ),
+          _buildStatCard(
+            Iconsax.clock,
+            const Color(0xFFF5A623),
+            '$studyHours hrs',
+            'Hours',
+          ),
+          _buildStatCard(
+            Iconsax.chart_2,
+            const Color(0xFF22C55E),
+            rank.toString(),
+            'Rank',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String icon, String value, String label) {
+  Widget _buildStatCard(
+    IconData icon,
+    Color color,
+    String value,
+    String label,
+  ) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 4),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+              style: GoogleFonts.nunito(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF888888)),
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                color: const Color(0xFF888888),
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
@@ -418,49 +492,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMenuSection() {
     final menuItems = [
       MenuItemData(
-        icon: Icons.book,
+        icon: Iconsax.book_saved,
         iconColor: AppColors.primary,
         title: 'My Courses',
         subtitle: _profile?.selectedCourse ?? 'View enrolled courses',
         onTap: () => context.go('/courses'),
       ),
       MenuItemData(
-        icon: Icons.download,
+        icon: Iconsax.import,
         iconColor: const Color(0xFF7C3AED),
         title: 'Downloads',
         subtitle: 'Offline content',
         onTap: () => context.go('/downloads'),
       ),
       MenuItemData(
-        icon: Icons.notifications,
+        icon: Iconsax.notification,
         iconColor: const Color(0xFFF5A623),
         title: 'Notifications',
         subtitle: 'Manage alerts',
         onTap: () => context.go('/notifications'),
       ),
       MenuItemData(
-        icon: Icons.card_giftcard,
+        icon: Iconsax.gift,
         iconColor: const Color(0xFF22C55E),
         title: 'Refer & Earn',
         subtitle: 'Earn rewards',
         onTap: () => _showShareDialog(),
       ),
       MenuItemData(
-        icon: Icons.star,
+        icon: Icons.star_rounded,
         iconColor: const Color(0xFFFF9500),
         title: 'Rate App',
         subtitle: 'Share feedback',
         onTap: () => _launchPlayStore(),
       ),
       MenuItemData(
-        icon: Icons.info,
+        icon: Iconsax.info_circle,
         iconColor: const Color(0xFF3B82F6),
         title: 'About App',
         subtitle: 'Version info',
         onTap: () => _showAboutDialog(),
       ),
       MenuItemData(
-        icon: Icons.logout,
+        icon: Iconsax.logout,
         iconColor: const Color(0xFFDC2626),
         title: 'Logout',
         subtitle: 'Sign out of account',
@@ -472,7 +546,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
-        children: menuItems.map((item) => _buildMenuItem(item)).toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Account',
+              style: GoogleFonts.nunito(
+                color: const Color(0xFF888888),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+          ...menuItems.map((item) => _buildMenuItem(item)).toList(),
+        ],
       ),
     );
   }
@@ -481,11 +570,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        color: item.isLogout
+            ? const Color(0xFFDC2626).withOpacity(0.05)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: item.isLogout
+              ? const Color(0xFFDC2626).withOpacity(0.2)
+              : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
         onTap: item.onTap,
         leading: Container(
           width: 40,
@@ -498,19 +595,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: Text(
           item.title,
-          style: TextStyle(
+          style: GoogleFonts.nunito(
             fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.bold,
             color: item.isLogout ? const Color(0xFFDC2626) : AppColors.primary,
           ),
         ),
         subtitle: Text(
           item.subtitle,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+          style: GoogleFonts.nunito(
+            fontSize: 11,
+            color: item.isLogout
+                ? const Color(0xFFDC2626).withOpacity(0.6)
+                : const Color(0xFF888888),
+          ),
         ),
         trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
+          Iconsax.arrow_right_3,
+          size: 18,
           color: const Color(0xFF888888),
         ),
       ),
@@ -624,9 +726,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove(StorageKeys.userToken);
+              await AuthService().signOut();
               if (mounted) {
+                await Provider.of<UserProvider>(context, listen: false).logout();
                 context.go('/login');
               }
             },

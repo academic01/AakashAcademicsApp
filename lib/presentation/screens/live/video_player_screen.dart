@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class VideoPlayerScreen extends StatefulWidget {
   final String videoId;
 
-  const VideoPlayerScreen({Key? key, required this.videoId}) : super(key: key);
+  const VideoPlayerScreen({super.key, required this.videoId});
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();

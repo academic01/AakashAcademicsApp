@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_constants.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
@@ -11,6 +12,7 @@ import '../screens/courses/courses_screen.dart';
 import '../screens/courses/course_detail_screen.dart';
 import '../screens/live/live_screen.dart';
 import '../screens/live/video_player_screen.dart';
+import '../screens/live/live_video_embed_screen.dart';
 import '../screens/tests/tests_screen.dart';
 import '../screens/tests/test_attempt_screen.dart';
 import '../screens/tests/test_result_screen.dart';
@@ -99,6 +101,21 @@ class AppRouter {
                   return VideoPlayerScreen(videoId: videoId);
                 },
               ),
+              // Embedded live viewer
+              GoRoute(
+                path: 'embed/:id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id'] ?? '';
+                  final streamUrl = state.uri.queryParameters['url'] ?? '';
+                  final title = state.uri.queryParameters['title'] ?? 'Live Class';
+                  final facultyName = state.uri.queryParameters['faculty'] ?? '';
+                  return LiveVideoEmbedScreen(
+                    streamUrl: streamUrl.isNotEmpty ? streamUrl : id,
+                    title: title,
+                    facultyName: facultyName,
+                  );
+                },
+              ),
             ],
           ),
 
@@ -166,11 +183,11 @@ class AppRouter {
     GoRouterState state,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    final profileComplete = prefs.getBool('profileComplete') ?? false;
+    final isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
+    final profileComplete = prefs.getBool(StorageKeys.profileComplete) ?? false;
     final isOnSplash = state.matchedLocation == '/splash';
-    final isOnAuth = state.matchedLocation == '/login' || 
-                     state.matchedLocation == '/signup';
+    final isOnAuth =
+        state.matchedLocation == '/login' || state.matchedLocation == '/signup';
     final isOnOnboarding = state.matchedLocation == '/onboarding';
     final isOnProfileSetup = state.matchedLocation == '/complete-profile';
 
@@ -200,7 +217,8 @@ class AppRouter {
     // If no login
     if (!isOnAuth && !isOnOnboarding && !isOnProfileSetup) {
       // Check if onboarding is complete
-      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+      final onboardingComplete =
+          prefs.getBool(StorageKeys.onboardingComplete) ?? false;
       if (!onboardingComplete) {
         return '/onboarding';
       }
@@ -219,6 +237,14 @@ extension GoRouterX on GoRouter {
 
   void pushVideoPlayer(String videoId) {
     push('/live/video/$videoId');
+  }
+
+  void pushLiveEmbed(String id, {String? streamUrl}) {
+    if (streamUrl != null && streamUrl.isNotEmpty) {
+      push('/live/embed/$id?url=${Uri.encodeComponent(streamUrl)}');
+    } else {
+      push('/live/embed/$id');
+    }
   }
 
   void pushTestAttempt(String testId) {

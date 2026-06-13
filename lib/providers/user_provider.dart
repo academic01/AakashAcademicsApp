@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/user_model.dart';
+import '../core/constants/app_constants.dart';
 
 class UserProvider extends ChangeNotifier {
   UserModel? _user;
@@ -87,7 +88,7 @@ class UserProvider extends ChangeNotifier {
       if (_user != null) {
         await prefs.setString('user', jsonEncode(_user!.toJson()));
         await prefs.setString('token', _user!.token ?? '');
-        await prefs.setBool('profileComplete', _isProfileComplete);
+        await prefs.setBool(StorageKeys.profileComplete, _isProfileComplete);
       }
     } catch (e) {
       debugPrint('Error saving user to prefs: $e');
@@ -106,7 +107,7 @@ class UserProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user');
       await prefs.remove('token');
-      await prefs.remove('profileComplete');
+      await prefs.remove(StorageKeys.profileComplete);
 
       _user = null;
       _isProfileComplete = false;

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_constants.dart';
 
 class ApiService {
   static const String baseUrl = 'https://aakashacademics.com/api';
@@ -49,7 +50,7 @@ class ApiService {
             try {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('user_token');
-              await prefs.remove('onboarding_complete');
+              await prefs.remove(StorageKeys.onboardingComplete);
               // Note: In production, use proper navigation
               // For now, just clear the token
             } catch (e) {

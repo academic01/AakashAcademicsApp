@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../data/models/student_profile.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/services/student_profile_service.dart';
 import '../../../providers/user_provider.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class CompleteProfileScreen extends StatefulWidget {
 }
 
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
+  final StudentProfileService _studentProfileService = StudentProfileService();
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _schoolController;
@@ -197,12 +199,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      await prefs.setString('userName', _nameController.text.trim());
-      await prefs.setString('userPhone', _phoneController.text);
-      await prefs.setString('userSchool', _schoolController.text);
-      await prefs.setString('userClass', _selectedClass!);
-      await prefs.setString('userCourse', _selectedCourse!);
-      await prefs.setString('userExam', _selectedExam ?? '');
       await prefs.setBool('profileComplete', true);
       await prefs.setBool('profileSkipped', false);
 
@@ -220,7 +216,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         isProfileComplete: true,
         isNewUser: false,
         token: currentUser?.token,
+        xp: currentUser?.xp ?? 0,
+        streak: currentUser?.streak ?? 0,
+        rank: currentUser?.rank ?? 'Rookie',
+        enrolledCourses: currentUser?.enrolledCourses ?? const [],
         createdAt: currentUser?.createdAt ?? DateTime.now(),
+      );
+
+      await _studentProfileService.saveProfile(
+        StudentProfile(
+          fullName: updatedUser.name ?? '',
+          phoneNumber: updatedUser.phone,
+          classLevel: updatedUser.currentClass ?? '',
+          selectedCourse: updatedUser.targetCourse ?? '',
+          schoolName: updatedUser.schoolCollege,
+        ),
       );
 
       userProvider.updateProfile(updatedUser);

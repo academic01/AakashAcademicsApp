@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "337869920006",
+    "project_id": "aakash-academics",
+    "storage_bucket": "aakash-academics.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337869920006:android:7853d9cd98210f6b35f087",
+        "android_client_info": {
+          "package_name": "com.aakashacademics.aakash_academics"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "337869920006-sb0fvtnrtfoklf7ck6r0hrbu996f3pl8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADP9dultPf1zjGKNiQpzNOZoNvKOsMw9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "337869920006-sb0fvtnrtfoklf7ck6r0hrbu996f3pl8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337869920006:android:864e4e44bc94d00c35f087",
+        "android_client_info": {
+          "package_name": "com.aakashacademics.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "337869920006-mvh076lkqg3bpoguridlvv5g5o4dfsm4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aakashacademics.app",
+            "certificate_hash": "ba89b011af647820df441827896f78f8cb19473b"
+          }
+        },
+        {
+          "client_id": "337869920006-sb0fvtnrtfoklf7ck6r0hrbu996f3pl8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADP9dultPf1zjGKNiQpzNOZoNvKOsMw9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "337869920006-sb0fvtnrtfoklf7ck6r0hrbu996f3pl8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

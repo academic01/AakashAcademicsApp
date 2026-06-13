@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class TestAttemptScreen extends StatefulWidget {
   final String testId;
 
-  const TestAttemptScreen({Key? key, required this.testId}) : super(key: key);
+  const TestAttemptScreen({super.key, required this.testId});
 
   @override
   State<TestAttemptScreen> createState() => _TestAttemptScreenState();

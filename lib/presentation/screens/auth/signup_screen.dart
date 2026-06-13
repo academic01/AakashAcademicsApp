@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../../data/models/user_model.dart';
+import '../../../data/services/auth_service.dart';
+import '../../../providers/user_provider.dart';
 import '../../widgets/academy_logo.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -13,6 +19,8 @@ class _SignupScreenState extends State<SignupScreen> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   late TextEditingController _confirmPasswordController;
+  final AuthService _authService = AuthService();
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -30,6 +38,65 @@ class _SignupScreenState extends State<SignupScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signUp() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    if (name.isEmpty) {
+      _showSnackBar('Please enter your full name.', isError: true);
+      return;
+    }
+    if (email.isEmpty || !email.contains('@')) {
+      _showSnackBar('Please enter a valid email address.', isError: true);
+      return;
+    }
+    if (password.length < 6) {
+      _showSnackBar(
+        'Password should be at least 6 characters.',
+        isError: true,
+      );
+      return;
+    }
+    if (password != confirmPassword) {
+      _showSnackBar('Passwords do not match.', isError: true);
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final result = await _authService.signUpWithEmail(
+      name: name,
+      email: email,
+      password: password,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (result['success'] == true) {
+      final user = result['user'] as UserModel;
+      context.read<UserProvider>().setUser(user);
+      context.go(user.isProfileComplete ? '/home' : '/complete-profile');
+      return;
+    }
+
+    _showSnackBar(
+      (result['error'] as String?) ?? 'Unable to create account.',
+      isError: true,
+    );
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : const Color(0xFF0D2240),
+      ),
+    );
   }
 
   @override
@@ -89,10 +156,14 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Implement signup logic
-              },
-              child: const Text('Sign Up'),
+              onPressed: _isSubmitting ? null : _signUp,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Sign Up'),
             ),
             const SizedBox(height: 16),
             Row(
@@ -101,7 +172,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 const Text('Already have an account? '),
                 TextButton(
                   onPressed: () {
-                    // TODO: Navigate to login
+                    context.go('/login');
                   },
                   child: const Text('Login'),
                 ),

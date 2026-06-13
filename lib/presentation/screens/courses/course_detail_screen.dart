@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../../core/constants/app_constants.dart';
+import 'package:provider/provider.dart';
+import '../../../data/services/database_service.dart';
+import '../../../providers/user_provider.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final String courseId;
 
-  const CourseDetailScreen({Key? key, required this.courseId})
-    : super(key: key);
+  const CourseDetailScreen({super.key, required this.courseId});
 
   @override
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
@@ -16,17 +15,17 @@ class CourseDetailScreen extends StatefulWidget {
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
   Future<void> _handleEnroll() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(StorageKeys.userToken);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
 
-    if (token == null || token.isEmpty) {
+    if (user == null) {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Login required'),
           content: const Text(
-            'Please login with your phone number to enroll in this course.',
+            'Please login to enroll in this course.',
           ),
           actions: [
             TextButton(
@@ -46,10 +45,18 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       return;
     }
 
+    final success = await DatabaseService().enrollInCourse(user.uid, widget.courseId);
+
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Course enrolled successfully.')),
-    );
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Course enrolled successfully.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to enroll. Please try again.')),
+      );
+    }
   }
 
   @override

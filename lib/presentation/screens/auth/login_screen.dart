@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import '../../../data/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -26,6 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Timer? _timer;
   String? _phoneError;
   String? _verificationId;
+  int? _resendToken;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -48,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _startTimer() {
+  void _startCountdown() {
     _countdown = 60;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
@@ -60,36 +63,54 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  void _sendOTP() async {
-    final phone = _phoneController.text.trim();
-
-    if (phone.length != 10) {
-      setState(() => _phoneError = 'Please enter valid 10-digit number');
+  Future<void> _sendOTP() async {
+    if (_phoneController.text.length != 10) {
+      setState(() => _phoneError = 'Enter valid 10-digit number');
       return;
     }
 
     setState(() => _isLoading = true);
 
-    try {
-      // Simulate OTP sending (Replace with actual Firebase Phone Auth)
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (mounted) {
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: '+91${_phoneController.text}',
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (credential) async {
+        await FirebaseAuth.instance.signInWithCredential(credential);
+        if (mounted) context.go('/home');
+      },
+      codeSent: (verificationId, resendToken) {
         setState(() {
+          _verificationId = verificationId;
+          _resendToken = resendToken;
           _isLoading = false;
           _otpSent = true;
-          _phoneError = null;
-          _verificationId =
-              'sim_${phone}_${DateTime.now().millisecondsSinceEpoch}';
         });
-        _startTimer();
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _phoneError = 'Failed to send OTP. Try again.';
-      });
-    }
+        _startCountdown();
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        setState(() => _isLoading = false);
+
+        String message = 'Failed to send OTP';
+
+        if (e.code == 'invalid-phone-number') {
+          message = 'Invalid phone number format';
+        } else if (e.code == 'too-many-requests') {
+          message = 'Too many requests. Wait before trying again.';
+        } else if (e.code == 'quota-exceeded') {
+          message = 'SMS quota exceeded. Try after some time.';
+        } else if (e.code == 'app-not-authorized') {
+          message = 'App not authorized. Check SHA-1 in Firebase.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      },
+      codeAutoRetrievalTimeout: (verificationId) {
+        _verificationId = verificationId;
+      },
+      forceResendingToken: _resendToken,
+    );
   }
 
   void _onOtpDigitChanged(int index, String value) {
@@ -114,13 +135,23 @@ class _LoginScreenState extends State<LoginScreen> {
     return _otpControllers.every((controller) => controller.text.isNotEmpty);
   }
 
-  void _verifyOTP() async {
+  Future<void> _verifyOTP() async {
     final otp = _otpControllers.map((controller) => controller.text).join();
 
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter the complete OTP'),
+          content: Text('Please enter complete 6-digit OTP'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_verificationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please request OTP first'),
           backgroundColor: Colors.red,
         ),
       );
@@ -130,53 +161,48 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isVerifying = true);
 
     try {
-      // Simulate API call (Replace with actual Firebase Auth)
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (!mounted) return;
-
-      final prefs = await SharedPreferences.getInstance();
-
-      // Create user model with phone
-      final user = UserModel(
-        uid: 'user_${_phoneController.text}',
-        phone: _phoneController.text,
-        isNewUser: true,
-        isProfileComplete: false,
-        token: 'token_${_phoneController.text}',
-        createdAt: DateTime.now(),
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: otp,
       );
 
-      // Save to SharedPreferences
-      await prefs.setString('user', jsonEncode(user.toJson()));
-      await prefs.setString('token', user.token!);
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setBool('isNewUser', true);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? true;
 
-      // Update provider
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(StorageKeys.isLoggedIn, true);
+      await prefs.setString(StorageKeys.userId, userCredential.user!.uid);
+      await prefs.setBool(StorageKeys.profileComplete, !isNewUser);
+
       if (mounted) {
-        context.read<UserProvider>().setUser(user);
-
-        setState(() => _isVerifying = false);
-
-        // Navigate to complete profile screen
-        context.go('/complete-profile');
-      }
-    } catch (e) {
-      setState(() => _isVerifying = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Verification failed. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        // Clear OTP boxes
-        for (var c in _otpControllers) {
-          c.clear();
+        if (isNewUser) {
+          context.go('/complete-profile');
+        } else {
+          final profileDone =
+              prefs.getBool(StorageKeys.profileComplete) ?? false;
+          context.go(profileDone ? '/home' : '/complete-profile');
         }
-        _focusNodes[0].requestFocus();
       }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _isVerifying = false);
+
+      String message = 'Verification failed';
+      if (e.code == 'invalid-verification-code') {
+        message = 'Wrong OTP entered. Try again.';
+      } else if (e.code == 'session-expired') {
+        message = 'OTP expired. Please request new OTP.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+
+      for (var c in _otpControllers) {
+        c.clear();
+      }
+      _focusNodes[0].requestFocus();
     }
   }
 
@@ -191,22 +217,44 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _signInWithGoogle() async {
-    // TODO: Implement Google Sign-in with proper OAuth flow
-    // For now, show a placeholder
+    setState(() => _isLoading = true);
+    final result = await _authService.signInWithGoogle();
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      final user = result['user'];
+      context.read<UserProvider>().setUser(user);
+      _goAfterAuth(user.isProfileComplete);
+      return;
+    }
+
+    _showSnackBar(
+      (result['error'] as String?) ?? 'Google sign-in failed.',
+      isError: true,
+    );
+  }
+
+  void _goAfterAuth(bool isProfileComplete) {
+    if (isProfileComplete) {
+      context.go('/home');
+    } else {
+      context.go('/complete-profile');
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Google Sign-in coming soon'),
-        backgroundColor: Colors.blue,
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : const Color(0xFF0D2240),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final phoneForDisplay = _phoneController.text.length == 10
-        ? _phoneController.text
-        : 'XXXXXXXXXX';
-
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -236,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 150,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
                   ),
@@ -248,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
                   ),
@@ -262,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.12),
+                            color: Colors.white.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Center(
@@ -291,7 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           'Your Rank. Your Rules.',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -425,7 +473,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     backgroundColor: const Color(0xFF0D2240),
                                     disabledBackgroundColor: const Color(
                                       0xFF0D2240,
-                                    ).withOpacity(0.5),
+                                    ).withValues(alpha: 0.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(26),
                                     ),
@@ -465,7 +513,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFF0D2240,
-                                  ).withOpacity(0.06),
+                                  ).withValues(alpha: 0.06),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
@@ -586,7 +634,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     backgroundColor: const Color(0xFF0D2240),
                                     disabledBackgroundColor: const Color(
                                       0xFF0D2240,
-                                    ).withOpacity(0.5),
+                                    ).withValues(alpha: 0.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(26),
                                     ),

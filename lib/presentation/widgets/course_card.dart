@@ -15,7 +15,7 @@ class CourseCard extends StatelessWidget {
   final VoidCallback onEnroll;
 
   const CourseCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.facultyName,
     required this.examType,
@@ -28,7 +28,7 @@ class CourseCard extends StatelessWidget {
     this.isBestseller = false,
     required this.onTap,
     required this.onEnroll,
-  }) : super(key: key);
+  });
 
   LinearGradient _getGradientByExamType() {
     switch (examType.toLowerCase()) {
@@ -115,35 +115,35 @@ class CourseCard extends StatelessWidget {
   String _getEmoji() {
     switch (examType.toLowerCase()) {
       case 'school':
-        return 'ðŸ“š';
+        return '📚';
       case 'senior':
-        return 'ðŸŽ“';
+        return '🎓';
       case 'govt':
-        return 'ðŸ›ï¸';
+        return '🏛️';
       case 'cuet':
-        return 'ðŸŽ¯';
+        return '🎯';
       case 'jee':
-        return 'ðŸ”¬';
+        return '🔬';
       case 'neet':
-        return 'ðŸ’Š';
+        return '💊';
       default:
-        return 'ðŸ“–';
+        return '📖';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF000000).withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -151,29 +151,32 @@ class CourseCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Row(
             children: [
               SizedBox(
                 width: 110,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    bottomLeft: Radius.circular(18),
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
                   ),
                   child: Container(
-                    decoration: BoxDecoration(gradient: _getGradientByExamType()),
+                    decoration: BoxDecoration(
+                      gradient: _getGradientByExamType(),
+                    ),
+                    height: 140,
                     child: Stack(
                       children: [
                         Positioned(
-                          top: -20,
-                          right: -20,
+                          top: -15,
+                          right: -15,
                           child: Container(
-                            width: 80,
-                            height: 80,
+                            width: 60,
+                            height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withOpacity(0.08),
                             ),
                           ),
                         ),

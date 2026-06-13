@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/app_constants.dart';
 
 import '../../../data/models/student_profile.dart';
 import '../../../data/models/user_model.dart';
@@ -103,7 +104,7 @@ class _StudentProfileSetupScreenState extends State<StudentProfileSetupScreen> {
 
       // Create user model
       final user = UserModel(
-        uid: 'user_${_phoneNumber}',
+        uid: 'user_$_phoneNumber',
         phone: _phoneNumber!,
         name: _nameController.text.trim(),
         schoolCollege: _schoolController.text.trim().isEmpty
@@ -118,8 +119,8 @@ class _StudentProfileSetupScreenState extends State<StudentProfileSetupScreen> {
 
       // Save to SharedPreferences
       await prefs.setString('user', jsonEncode(user.toJson()));
-      await prefs.setBool('profileComplete', true);
-      await prefs.setBool('profileSkipped', false);
+      await prefs.setBool(StorageKeys.profileComplete, true);
+      await prefs.setBool(StorageKeys.profileSkipped, false);
 
       // Update provider
       if (mounted) {
@@ -154,8 +155,8 @@ class _StudentProfileSetupScreenState extends State<StudentProfileSetupScreen> {
 
   void _skipProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('profileComplete', false);
-    await prefs.setBool('profileSkipped', true);
+    await prefs.setBool(StorageKeys.profileComplete, false);
+    await prefs.setBool(StorageKeys.profileSkipped, true);
 
     // Update provider
     if (mounted) {

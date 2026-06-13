@@ -1,161 +1,185 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/colors.dart';
+import '../../../core/constants/text_styles.dart';
+import '../../../data/services/database_service.dart';
 
 class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({Key? key}) : super(key: key);
+  const LeaderboardScreen({super.key});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
-  final List<_LeaderboardEntry> _entries = [
-    _LeaderboardEntry(1, 'Raj Kumar', 95.5, true),
-    _LeaderboardEntry(2, 'Priya Singh', 93.2, false),
-    _LeaderboardEntry(3, 'Arjun Patel', 91.8, false),
-    _LeaderboardEntry(4, 'Neha Gupta', 90.5, false),
-    _LeaderboardEntry(5, 'Current User', 87.5, true),
-    _LeaderboardEntry(6, 'Aditya Sharma', 86.2, false),
-    _LeaderboardEntry(7, 'Anjali Verma', 85.0, false),
-    _LeaderboardEntry(8, 'Vivek Kumar', 84.5, false),
-  ];
+  final DatabaseService _dbService = DatabaseService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Leaderboard')),
-      body: Column(
-        children: [
-          // Filter tabs
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildFilterButton('All Time', true),
-                _buildFilterButton('This Month', false),
-                _buildFilterButton('This Week', false),
-              ],
-            ),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const Text(
+          'Leaderboard',
+          style: TextStyle(
+            color: Color(0xFF0D2240),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
-          // Leaderboard list
-          Expanded(
+        ),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _dbService.getLeaderboard(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.people, size: 64, color: Color(0xFFCCCCCC)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No leaderboard data',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      color: const Color(0xFF888888),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final entries = snapshot.data!;
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {});
+            },
             child: ListView.builder(
-              itemCount: _entries.length,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              itemCount: entries.length,
               itemBuilder: (context, index) {
-                final entry = _entries[index];
-                return _buildLeaderboardTile(entry);
+                final entry = entries[index];
+                final position = entry['position'] as int;
+                final rank = entry['rank'] ?? 'Rookie';
+                final xp = entry['xp'] ?? 0;
+                final name =
+                    entry['displayName'] ??
+                    entry['name'] ??
+                    'User ${entry['uid']?.substring(0, 6)}';
+
+                // Determine medal/badge
+                String medal = '';
+                Color medalColor = Colors.grey;
+                if (position == 1) {
+                  medal = '🥇';
+                  medalColor = const Color(0xFFFFD700);
+                } else if (position == 2) {
+                  medal = '🥈';
+                  medalColor = const Color(0xFFC0C0C0);
+                } else if (position == 3) {
+                  medal = '🥉';
+                  medalColor = const Color(0xFFCD7F32);
+                }
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: position <= 3
+                        ? medalColor.withOpacity(0.1)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: position <= 3
+                          ? medalColor.withOpacity(0.3)
+                          : const Color(0xFFE5E7EB),
+                      width: 1,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      // Position
+                      SizedBox(
+                        width: 40,
+                        child: Row(
+                          children: [
+                            if (medal.isNotEmpty)
+                              Text(medal, style: const TextStyle(fontSize: 20))
+                            else
+                              Text(
+                                '#$position',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF888888),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // User Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.labelLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0D2240),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              rank,
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: const Color(0xFF888888),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // XP
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$xp XP',
+                            style: AppTextStyles.labelLarge.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Icon(
+                            Icons.trending_up,
+                            size: 14,
+                            color: Color(0xFF22C55E),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
               },
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
-
-  Widget _buildFilterButton(String label, bool isActive) {
-    return ElevatedButton(
-      onPressed: () {
-        // TODO: Change filter
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isActive
-            ? const Color(0xFF0D2240)
-            : const Color(0xFFF9F9F9),
-        foregroundColor: isActive ? Colors.white : const Color(0xFF888888),
-        elevation: 0,
-      ),
-      child: Text(label),
-    );
-  }
-
-  Widget _buildLeaderboardTile(_LeaderboardEntry entry) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: entry.isCurrentUser ? const Color(0xFFF9F9F9) : Colors.white,
-        border: Border.all(
-          color: entry.isCurrentUser
-              ? const Color(0xFF0D2240)
-              : const Color(0xFFE5E5E5),
-          width: entry.isCurrentUser ? 2 : 1,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          // Rank badge
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: entry.rank <= 3
-                  ? const Color(0xFF0D2240)
-                  : const Color(0xFFF9F9F9),
-            ),
-            child: Center(
-              child: Text(
-                '${entry.rank}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: entry.rank <= 3
-                      ? Colors.white
-                      : const Color(0xFF0D2240),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // User info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${entry.score} points',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF888888),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Score display
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '${entry.score}%',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF22C55E),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LeaderboardEntry {
-  final int rank;
-  final String name;
-  final double score;
-  final bool isCurrentUser;
-
-  _LeaderboardEntry(this.rank, this.name, this.score, this.isCurrentUser);
 }

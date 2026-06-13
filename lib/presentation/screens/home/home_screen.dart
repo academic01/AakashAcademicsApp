@@ -44,6 +44,26 @@ class _HomeScreenState extends State<HomeScreen> {
     final featuredCourses = _getFeaturedCourses();
     final enrolledCourseCount = _profile == null ? '0' : '1';
 
+    final user = userProvider.user;
+    final xp = user?.xp ?? 0;
+    final streak = user?.streak ?? 0;
+    final rank = user?.rank ?? 'Rookie';
+
+    int nextLevelXP = 1000;
+    if (xp >= 15000) {
+      nextLevelXP = 30000;
+    } else if (xp >= 7000) {
+      nextLevelXP = 15000;
+    } else if (xp >= 3000) {
+      nextLevelXP = 7000;
+    } else if (xp >= 1000) {
+      nextLevelXP = 3000;
+    } else {
+      nextLevelXP = 1000;
+    }
+
+    final progress = xp / nextLevelXP;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
@@ -225,9 +245,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: const Color(0xFFFEF08A),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: const Text(
-                                    'Scholar',
-                                    style: TextStyle(
+                                  child: Text(
+                                    rank,
+                                    style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                       color: Color(0xFFF5A623),
@@ -237,22 +257,22 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            const Row(
+                            Row(
                               crossAxisAlignment: CrossAxisAlignment.baseline,
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  '4,200',
-                                  style: TextStyle(
+                                  xp.toString(),
+                                  style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w800,
                                     color: Color(0xFF0D2240),
                                   ),
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
-                                  '/ 5,000 XP',
-                                  style: TextStyle(
+                                  '/ $nextLevelXP XP',
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF888888),
                                   ),
@@ -263,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(3),
                               child: LinearProgressIndicator(
-                                value: 0.84,
+                                value: progress.clamp(0.0, 1.0),
                                 minHeight: 6,
                                 backgroundColor: const Color(0xFFE5E7EB),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
@@ -300,9 +320,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             const Text('🔥', style: TextStyle(fontSize: 32)),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Day 14',
-                              style: TextStyle(
+                            Text(
+                              'Day $streak',
+                              style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
                                 color: Color(0xFFEA580C),

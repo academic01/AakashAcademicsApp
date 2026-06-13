@@ -56,5 +56,6 @@ class StorageKeys {
   static const String lastSyncTime = 'last_sync_time';
   static const String studentProfile = 'student_profile';
   static const String profileComplete = 'profile_complete';
+  static const String profileSkipped = 'profile_skipped';
   static const String authPhone = 'auth_phone';
 }
