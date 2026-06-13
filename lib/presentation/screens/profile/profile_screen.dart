@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,16 +23,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // User data (in production, fetch from provider/API)
   final StudentProfileService _studentProfileService = StudentProfileService();
-  final String studentClass = 'Class 12 • CUET 2026';
   StudentProfile? _profile;
-  final int currentXP = 4200;
-  final int totalXP = 5000;
-  final int rank = 42;
-
-  // Stats
-  final int enrolledCourses = 1;
-  final int testsAttempted = 18;
-  final int studyHours = 45;
+  
+  // Real stats from Firestore
+  int _enrolledCoursesCount = 0;
+  int _testsAttemptedCount = 0;
+  int _leaderboardRank = 0;
 
   // Badges
   final List<BadgeData> badges = [
@@ -49,13 +46,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     final profile = await _studentProfileService.loadProfile();
+    
+    // Fetch tests attempted, enrolled courses, and leaderboard rank from Firestore
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
+    if (user != null) {
+      try {
+        final testsSnap = await FirebaseFirestore.instance
+            .collection('testResults')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+        
+        final enrollSnap = await FirebaseFirestore.instance
+            .collection('enrollments')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+
+        final leaderboardSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('isActive', isEqualTo: true)
+            .orderBy('xp', descending: true)
+            .get();
+        final rankIndex = leaderboardSnap.docs.indexWhere((doc) => doc.id == user.uid);
+        
+        if (mounted) {
+          setState(() {
+            _testsAttemptedCount = testsSnap.docs.length;
+            _enrolledCoursesCount = enrollSnap.docs.length;
+            _leaderboardRank = rankIndex != -1 ? rankIndex + 1 : 0;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading stats: $e');
+      }
+    }
+
     if (!mounted) return;
     setState(() => _profile = profile);
   }
 
+  int getLevelFromXP(int xp) {
+    if (xp >= 15000) return 5;
+    if (xp >= 7000) return 4;
+    if (xp >= 3000) return 3;
+    if (xp >= 1000) return 2;
+    return 1;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final xpProgress = currentXP / totalXP;
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.user;
+    
+    final xp = user?.xp ?? 0;
+    final rankName = user?.rank ?? 'Rookie';
+
+    int nextLevelXP = 1000;
+    if (xp >= 15000) {
+      nextLevelXP = 30000;
+    } else if (xp >= 7000) {
+      nextLevelXP = 15000;
+    } else if (xp >= 3000) {
+      nextLevelXP = 7000;
+    } else if (xp >= 1000) {
+      nextLevelXP = 3000;
+    } else {
+      nextLevelXP = 1000;
+    }
+
+    final double xpProgress = (xp / nextLevelXP).clamp(0.0, 1.0);
     final studentName = _profile?.fullName ?? 'Student';
     final studentClass =
         _profile?.displayClassAndCourse ?? 'Complete your profile';
@@ -70,6 +129,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             studentName: studentName,
             studentClass: studentClass,
             studentInitial: studentInitial,
+            xp: xp,
+            nextLevelXP: nextLevelXP,
+            rankName: rankName,
           ),
 
           // Stats Row
@@ -90,6 +152,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String studentName,
     required String studentClass,
     required String studentInitial,
+    required int xp,
+    required int nextLevelXP,
+    required String rankName,
   }) {
     return Container(
       width: double.infinity,
@@ -243,7 +308,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Scholar Rank',
+                              '$rankName Rank',
                               style: GoogleFonts.nunito(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -251,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             Text(
-                              '$currentXP / $totalXP XP',
+                              '$xp / $nextLevelXP XP',
                               style: GoogleFonts.nunito(
                                 color: Colors.white.withOpacity(0.65),
                                 fontSize: 12,
@@ -270,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'Level 4',
+                            'Level ${getLevelFromXP(xp)}',
                             style: GoogleFonts.nunito(
                               color: const Color(0xFF0D2240),
                               fontWeight: FontWeight.bold,
@@ -311,25 +376,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildStatCard(
             Iconsax.book_saved,
             const Color(0xFF0D2240),
-            enrolledCourses.toString(),
+            _enrolledCoursesCount.toString(),
             'Courses',
           ),
           _buildStatCard(
             Iconsax.clipboard_text,
             const Color(0xFF7C3AED),
-            testsAttempted.toString(),
+            _testsAttemptedCount.toString(),
             'Tests',
           ),
           _buildStatCard(
             Iconsax.clock,
             const Color(0xFFF5A623),
-            '$studyHours hrs',
+            '0 hrs', // Defaults clean to 0 hrs for new users
             'Hours',
           ),
           _buildStatCard(
             Iconsax.chart_2,
             const Color(0xFF22C55E),
-            rank.toString(),
+            _leaderboardRank > 0 ? _leaderboardRank.toString() : '-',
             'Rank',
           ),
         ],
