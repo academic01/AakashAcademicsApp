@@ -6,8 +6,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../core/constants/gradients.dart';
 import '../../../core/utils/content_filter.dart';
-import '../../../data/models/student_profile.dart';
-import '../../../data/services/database_service.dart';
 import '../../../data/services/student_profile_service.dart';
 import '../../../providers/user_provider.dart';
 import '../../widgets/redesigned_course_card.dart';
@@ -20,7 +18,6 @@ class CoursesScreen extends StatefulWidget {
 }
 
 class _CoursesScreenState extends State<CoursesScreen> {
-  final DatabaseService _dbService = DatabaseService();
   final StudentProfileService _studentProfileService = StudentProfileService();
   String _selectedFilter = 'All';
   String _searchQuery = '';
@@ -51,6 +48,25 @@ class _CoursesScreenState extends State<CoursesScreen> {
     super.dispose();
   }
 
+  String? _getCategoryFromFilter(String filter) {
+    switch (filter.toLowerCase()) {
+      case 'school':
+        return 'school';
+      case 'boards':
+        return 'senior';
+      case 'govt':
+        return 'govt';
+      case 'cuet':
+        return 'cuet';
+      case 'jee':
+        return 'jee';
+      case 'neet':
+        return 'neet';
+      default:
+        return null;
+    }
+  }
+
   Future<void> _loadUserProfile() async {
     try {
       String? targetCourse;
@@ -69,16 +85,15 @@ class _CoursesScreenState extends State<CoursesScreen> {
         }
       }
 
-      if (targetCourse == null && targetExam == null) return;
-
-      final category = getCategoryFromProfile(targetCourse, targetExam);
+      final category = ContentFilter.getCategoryFromProfile(
+        targetCourse: targetCourse,
+        targetExam: targetExam,
+        currentClass: user?.currentClass,
+      );
       if (category == null) return;
 
-      final normalized = category.toLowerCase();
       final selection = _filterOptions.firstWhere(
-        (option) =>
-            option.toLowerCase() == normalized ||
-            option.toLowerCase().contains(normalized),
+        (option) => _getCategoryFromFilter(option) == category,
         orElse: () => _selectedFilter,
       );
 
@@ -276,7 +291,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
             ),
 
             if (_userCategory != null &&
-                _selectedFilter.toLowerCase() == _userCategory!.toLowerCase())
+                _getCategoryFromFilter(_selectedFilter) == _userCategory)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -288,7 +303,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Showing courses for ${_selectedFilter.toUpperCase()}',
+                      'Showing courses for ${ContentFilter.getCategoryDisplayName(_userCategory)}',
                       style: const TextStyle(
                         color: Color(0xFF0D2240),
                         fontWeight: FontWeight.w700,
@@ -324,13 +339,18 @@ class _CoursesScreenState extends State<CoursesScreen> {
   }
 
   Widget _buildCoursesList() {
-    String? queryCategory;
-    if (_selectedFilter != 'All' && _selectedFilter != 'Free') {
-      queryCategory = _selectedFilter.toLowerCase();
+    final selectedCategory = _getCategoryFromFilter(_selectedFilter);
+
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('courses')
+        .where('status', whereIn: const ['active', 'coming_soon']);
+
+    if (selectedCategory != null) {
+      query = query.where('category', isEqualTo: selectedCategory);
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: _dbService.streamCourses(category: queryCategory),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -340,7 +360,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        final docs = snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -358,13 +380,26 @@ class _CoursesScreenState extends State<CoursesScreen> {
           );
         }
 
-        var courses = snapshot.data!.docs
-            .map((doc) => {...doc.data() as Map<String, dynamic>, 'id': doc.id})
-            .where((c) {
-              final status = c['status'];
-              return status == 'active' || status == 'coming_soon';
-            })
+        var courses = docs
+            .map((doc) => {...doc.data(), 'id': doc.id})
             .toList();
+
+        // Apply free filter
+        if (_selectedFilter == 'Free') {
+          courses = courses
+              .where((c) => c['price'] == 0 || c['isFree'] == true)
+              .toList();
+        }
+
+        // Apply search filter
+        if (_searchQuery.isNotEmpty) {
+          courses = courses.where((c) {
+            final title = (c['title'] ?? '').toString().toLowerCase();
+            final faculty = (c['facultyName'] ?? '').toString().toLowerCase();
+            return title.contains(_searchQuery) ||
+                faculty.contains(_searchQuery);
+          }).toList();
+        }
 
         // Sort in memory: isFeatured (descending), then createdAt (descending)
         courses.sort((a, b) {
@@ -380,23 +415,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
           if (bTime == null) return -1;
           return bTime.compareTo(aTime);
         });
-
-        // Apply free filter
-        if (_selectedFilter == 'Free') {
-          courses = courses
-              .where((c) => c['price'] == 0 || c['isFree'] == true)
-              .toList();
-        }
-
-        // Apply search filter
-        if (_searchQuery.isNotEmpty) {
-          courses = courses.where((c) {
-            final title = (c['title'] ?? '').toLowerCase();
-            final faculty = (c['facultyName'] ?? '').toLowerCase();
-            return title.contains(_searchQuery) ||
-                faculty.contains(_searchQuery);
-          }).toList();
-        }
 
         if (courses.isEmpty) {
           return Center(
