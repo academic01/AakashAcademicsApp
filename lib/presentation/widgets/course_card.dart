@@ -141,7 +141,7 @@ class CourseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF000000).withOpacity(0.05),
+            color: const Color(0xFF000000).withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -176,7 +176,7 @@ class CourseCard extends StatelessWidget {
                             height: 60,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.08),
+                              color: Colors.white.withValues(alpha: 0.08),
                             ),
                           ),
                         ),
@@ -195,7 +195,7 @@ class CourseCard extends StatelessWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: Colors.white.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -260,7 +260,7 @@ class CourseCard extends StatelessWidget {
                           ),
                         if (isComingSoon)
                           Container(
-                            color: Colors.black.withOpacity(0.5),
+                            color: Colors.black.withValues(alpha: 0.5),
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -306,7 +306,7 @@ class CourseCard extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: _getExamBadgeColor().withOpacity(0.1),
+                              color: _getExamBadgeColor().withValues(alpha: 0.1),
                               border: Border.all(
                                 color: _getExamBadgeColor(),
                                 width: 0.5,

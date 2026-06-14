@@ -6,10 +6,10 @@ class FloatingBottomNav extends StatelessWidget {
   final Function(int) onTap;
 
   const FloatingBottomNav({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +27,11 @@ class FloatingBottomNav extends StatelessWidget {
       height: 70,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard.withOpacity(0.95) : Colors.white,
+        color: isDark ? AppColors.darkCard.withValues(alpha: 0.95) : Colors.white,
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),

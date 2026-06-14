@@ -160,6 +160,16 @@ class DatabaseService {
         .toList();
   }
 
+  // Stream course videos
+  Stream<QuerySnapshot> streamVideos(String courseId) {
+    return _db
+        .collection('videos')
+        .where('courseId', isEqualTo: courseId)
+        .orderBy('chapterIndex')
+        .orderBy('order')
+        .snapshots();
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━
   // ENROLLMENT OPERATIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -413,6 +423,18 @@ class DatabaseService {
             .map((d) => {...d.data(), 'id': d.id})
             .toList());
   }
+
+  // Stream all active courses
+  Stream<List<Map<String, dynamic>>> streamActiveCourses() {
+    return _db
+        .collection('courses')
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((d) => {...d.data(), 'id': d.id})
+            .toList());
+  }
+
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━
   // LIVE CLASSES

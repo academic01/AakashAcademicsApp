@@ -35,11 +35,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final CarouselSliderController _carouselController = CarouselSliderController();
 
-  String _displayName = 'Student';
-  String? _userCategory;
-  bool _isProfileComplete = false;
+  // Track the last category we auto-scrolled to (avoid repeated scrolls)
+  String? _lastScrolledCategory;
 
-  final Map<String, int> _categoryToSlideIndex = {
+  static const Map<String, int> _categoryToSlideIndex = {
     'school': 0,
     'senior': 1,
     'govt': 2,
@@ -50,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadProfile();
-    _loadUserData();
   }
 
   Future<void> _loadProfile() async {
@@ -59,107 +57,146 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _profile = profile);
   }
 
-  Future<void> _loadUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      
-      if (!mounted) return;
-      if (!doc.exists || doc.data() == null) return;
-      
-      final data = doc.data()!;
-      debugPrint('=== HOME SCREEN ===');
-      debugPrint('UID: $uid');
-      debugPrint('Doc exists: ${doc.exists}');
-      debugPrint('All fields: $data');
-      
-      setState(() {
-        final rawName = data['name'] as String? ??
-            data['displayName'] as String? ??
-            data['userName'] as String?;
-        
-        _displayName = (rawName != null && rawName.trim().isNotEmpty)
-            ? rawName.trim()
-            : (data['phone'] as String? ?? 'Student');
-        
-        _isProfileComplete = data['isProfileComplete'] as bool? ?? false;
-        
-        _userCategory = ContentFilter.getCategoryFromProfile(
-          targetCourse: data['targetCourse'] as String?,
-          targetExam: data['targetExam'] as String?,
-          currentClass: data['currentClass'] as String?,
+  /// Auto-scroll the hero carousel whenever the user's category changes.
+  /// Called reactively by didChangeDependencies() so it picks up UserProvider updates.
+  void _maybeScrollCarousel(String? category) {
+    if (category == null || category == _lastScrolledCategory) return;
+    _lastScrolledCategory = category;
+    final index = _categoryToSlideIndex[category] ?? 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _carouselController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
         );
-        
-        debugPrint('Name: $_displayName');
-        debugPrint('Category: $_userCategory');
-        debugPrint('Profile complete: $_isProfileComplete');
-      });
-
-      if (_userCategory != null) {
-        final index = _categoryToSlideIndex[_userCategory] ?? 0;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _carouselController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          }
-        });
       }
-    } catch (e) {
-      debugPrint('Error loading user: $e');
-    }
+    });
   }
 
-  Stream<int> _getUnreadCount() async* {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reactively auto-scroll carousel when UserProvider category changes
+    final user = context.read<UserProvider>().user;
+    final category = ContentFilter.getCategoryFromProfile(
+      targetCourse: user?.targetCourse,
+      targetExam: user?.targetExam,
+      currentClass: user?.currentClass,
+    );
+    _maybeScrollCarousel(category);
+  }
+
+  Stream<int> _getUnreadCount() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      yield 0;
-      return;
+    if (uid == null) return Stream.value(0);
+
+    // Use a StreamController to combine two live streams:
+    // 1. User doc — for dismissedNotificationIds + notificationsClearedAt
+    // 2. Notifications collection — for real-time new notifications
+    final controller = StreamController<int>();
+
+    Set<String> dismissedIds = {};
+    Timestamp? clearedAt;
+    List<QueryDocumentSnapshot> notifDocs = [];
+
+    void recalculate() {
+      if (controller.isClosed) return;
+      int count = 0;
+      for (final doc in notifDocs) {
+        // Skip individually dismissed notifications
+        if (dismissedIds.contains(doc.id)) continue;
+        // Skip notifications created before "Clear All" timestamp
+        if (clearedAt != null) {
+          final data = doc.data() as Map<String, dynamic>;
+          final createdAt = data['createdAt'] as Timestamp?;
+          if (createdAt != null &&
+              createdAt.millisecondsSinceEpoch <=
+                  clearedAt!.millisecondsSinceEpoch) {
+            continue;
+          }
+        }
+        count++;
+      }
+      controller.add(count);
     }
-    
-    final userDoc = await FirebaseFirestore.instance
+
+    // Stream 1: Listen to user doc for dismiss/clear state
+    final userSub = FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
-        .get();
-    
-    final lastSeen = userDoc.data()?['lastSeenNotificationsAt'] as Timestamp?;
-    
-    Query query = FirebaseFirestore.instance
+        .snapshots()
+        .listen((snap) {
+      final data = snap.data() ?? {};
+      dismissedIds = Set<String>.from(
+          List<String>.from(data['dismissedNotificationIds'] ?? []));
+      clearedAt = data['notificationsClearedAt'] as Timestamp?;
+      recalculate();
+    });
+
+    // Stream 2: Listen to notifications for real-time new ones
+    final notifSub = FirebaseFirestore.instance
         .collection('notifications')
-        .where('target', isEqualTo: 'all');
-    
-    if (lastSeen != null) {
-      query = query.where('createdAt', isGreaterThan: lastSeen);
-    }
-    
-    yield* query.snapshots().map((snap) => snap.docs.length);
+        .where('target', isEqualTo: 'all')
+        .snapshots()
+        .listen((snap) {
+      notifDocs = snap.docs;
+      recalculate();
+    });
+
+    // Cancel both subscriptions when the stream is cancelled
+    controller.onCancel = () {
+      userSub.cancel();
+      notifSub.cancel();
+    };
+
+    return controller.stream;
   }
 
   Future<void> _refreshDashboard() async {
     await Future.delayed(const Duration(seconds: 1));
     await _loadProfile();
-    await _loadUserData();
   }
 
   @override
   Widget build(BuildContext context) {
+    // ── Single source of truth: UserProvider (has live Firestore listener) ──
     final userProvider = context.watch<UserProvider>();
-    
-    final nameToUse = (userProvider.user?.name?.trim().isNotEmpty == true)
-        ? userProvider.user!.name!
-        : _displayName;
-        
-    final studentInitial = _profile?.initial ?? 
+    final user = userProvider.user;
+
+    // BUG 1 FIX: Name — priority order:
+    // 1. UserProvider.user.name (from Firestore, live)
+    // 2. StudentProfile.fullName (from local SharedPreferences — set on profile completion)
+    // 3. UserProvider.user.phone (phone fallback)
+    // 4. 'Student' (last resort)
+    final String nameToUse;
+    final rawName = user?.name?.trim();
+    final profileName = _profile?.fullName.trim();
+    if (rawName != null && rawName.isNotEmpty) {
+      nameToUse = rawName;
+    } else if (profileName != null && profileName.isNotEmpty) {
+      nameToUse = profileName;              // ← PINKI comes from here
+    } else if (user?.phone.trim().isNotEmpty == true) {
+      nameToUse = user!.phone;
+    } else {
+      nameToUse = 'Student';
+    }
+
+    // BUG 3 FIX: Profile complete status from UserProvider (live, no timing issues)
+    final bool isProfileComplete = userProvider.isProfileComplete;
+
+    // BUG 2 FIX: Category derived from UserProvider — triggers carousel scroll reactively
+    final String? userCategory = ContentFilter.getCategoryFromProfile(
+      targetCourse: user?.targetCourse,
+      targetExam: user?.targetExam,
+      currentClass: user?.currentClass,
+    );
+    // Trigger carousel scroll if category changed
+    _maybeScrollCarousel(userCategory);
+
+    final studentInitial = _profile?.initial ??
         (nameToUse.isNotEmpty ? nameToUse[0].toUpperCase() : 'S');
 
-    final user = userProvider.user;
     final xp = user?.xp ?? 0;
     final streak = user?.streak ?? 0;
     final rank = user?.rank ?? 'Rookie';
@@ -278,15 +315,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                _isProfileComplete
-                                    ? (_userCategory != null
-                                        ? ContentFilter.getCategoryDisplayName(_userCategory)
+                                isProfileComplete
+                                    ? (userCategory != null
+                                        ? ContentFilter.getCategoryDisplayName(userCategory)
                                         : '')
                                     : 'Complete profile',
                                 style: TextStyle(
-                                  color: _isProfileComplete
+                                  color: isProfileComplete
                                       ? secondaryTextColor
-                                      : const Color(0xFFF5A623), // Yellow color if incomplete
+                                      : const Color(0xFFF5A623), // Yellow if profile incomplete
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -318,57 +355,48 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        if (user?.uid == null)
-                          IconButton(
-                            icon: Icon(
-                              Icons.notifications_none_rounded,
-                              color: primaryTextColor,
-                            ),
-                            onPressed: () {},
-                          )
-                        else
-                          StreamBuilder<int>(
-                            stream: _getUnreadCount(),
-                            builder: (context, snapshot) {
-                              final count = snapshot.data ?? 0;
-                              return Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () => context.push('/notifications'),
-                                    child: Icon(
-                                      Icons.notifications_outlined,
-                                      color: primaryTextColor,
-                                      size: 26,
-                                    ),
+                        StreamBuilder<int>(
+                          stream: _getUnreadCount(),
+                          builder: (context, snapshot) {
+                            final count = snapshot.data ?? 0;
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => context.push('/notifications'),
+                                  child: Icon(
+                                    Icons.notifications_outlined,
+                                    color: primaryTextColor,
+                                    size: 26,
                                   ),
-                                  if (count > 0)
-                                    Positioned(
-                                      right: -4,
-                                      top: -4,
-                                      child: Container(
-                                        width: 18,
-                                        height: 18,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEF4444),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            count > 9 ? '9+' : '$count',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                            ),
+                                ),
+                                if (count > 0)
+                                  Positioned(
+                                    right: -4,
+                                    top: -4,
+                                    child: Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          count > 9 ? '9+' : '$count',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
                                     ),
-                                ],
-                              );
-                            },
-                          ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -708,18 +736,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeaturedCourses() {
-    // Build query based on whether we have a user category
+    // Get user data from UserProvider (single source of truth)
+    final userProvider = context.read<UserProvider>();
+    final user = userProvider.user;
+    final isProfileComplete = userProvider.isProfileComplete;
+    final userCategory = ContentFilter.getCategoryFromProfile(
+      targetCourse: user?.targetCourse,
+      targetExam: user?.targetExam,
+      currentClass: user?.currentClass,
+    );
+
+    // Build query — NO orderBy to avoid composite index requirement
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('courses')
         .where('status', isEqualTo: 'active');
     
-    // If user has a category, filter by it — NO isFeatured requirement
-    if (_userCategory != null && _isProfileComplete) {
-      query = query.where('category', isEqualTo: _userCategory);
+    // If user has a category, filter by it
+    if (userCategory != null && isProfileComplete) {
+      query = query.where('category', isEqualTo: userCategory);
     }
-    
-    // Always order by enrollments (most popular first)
-    query = query.orderBy('totalEnrollments', descending: true);
     
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
@@ -733,7 +768,12 @@ class _HomeScreenState extends State<HomeScreen> {
           return _buildCoursesError();
         }
         
-        final docs = snapshot.data?.docs ?? [];
+        // Sort client-side by totalEnrollments descending (most popular first)
+        final docs = (snapshot.data?.docs ?? [])..sort((a, b) {
+          final aEnroll = (a.data() as Map<String, dynamic>)['totalEnrollments'] as num? ?? 0;
+          final bEnroll = (b.data() as Map<String, dynamic>)['totalEnrollments'] as num? ?? 0;
+          return bEnroll.compareTo(aEnroll);
+        });
         
         if (docs.isEmpty) {
           return _buildEmptyWithFallback();
@@ -743,11 +783,11 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Section header
-            if (_isProfileComplete && _userCategory != null)
+            if (isProfileComplete && userCategory != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
-                  'For You — ${ContentFilter.getCategoryDisplayName(_userCategory)}',
+                  'For You — ${ContentFilter.getCategoryDisplayName(userCategory)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF888888),
@@ -785,14 +825,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmptyWithFallback() {
+    final userCategory = ContentFilter.getCategoryFromProfile(
+      targetCourse: context.read<UserProvider>().user?.targetCourse,
+      targetExam: context.read<UserProvider>().user?.targetExam,
+      currentClass: context.read<UserProvider>().user?.currentClass,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_userCategory != null)
+        if (userCategory != null)
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              'No ${ContentFilter.getCategoryDisplayName(_userCategory)} courses yet — explore all courses below',
+              'No ${ContentFilter.getCategoryDisplayName(userCategory)} courses yet — explore all courses below',
               style: const TextStyle(
                 color: Color(0xFF888888),
                 fontSize: 13,

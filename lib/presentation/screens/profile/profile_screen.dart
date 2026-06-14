@@ -1,14 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/text_styles.dart';
 import '../../../core/constants/gradients.dart';
 import '../../../data/models/student_profile.dart';
 import '../../../data/services/auth_service.dart';
@@ -48,15 +44,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     final profile = await _studentProfileService.loadProfile();
+    if (!mounted) return;
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final user = userProvider.user;
     if (user != null) {
-      _dbService.streamTestResultsCount(user.uid).listen((count) {
-        if (mounted) setState(() => _testsAttemptedCount = count);
+      _dbService.streamTestResultsCount(user.uid).listen((resultsCount) {
+        if (mounted) setState(() => _testsAttemptedCount = resultsCount);
       });
 
-      _dbService.streamEnrollmentsCount(user.uid).listen((count) {
-        if (mounted) setState(() => _enrolledCoursesCount = count);
+      _dbService.streamEnrollmentsCount(user.uid).listen((coursesCount) {
+        if (mounted) setState(() => _enrolledCoursesCount = coursesCount);
       });
 
       _dbService.streamLeaderboard().listen((entries) {
@@ -69,7 +66,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
 
-    if (!mounted) return;
     setState(() => _profile = profile);
   }
 
@@ -180,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 24,
                   offset: const Offset(0, 8),
                 ),
@@ -195,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   percent: xpProgress,
                   center: CircleAvatar(
                     radius: 36,
-                    backgroundColor: const Color(0xFF4F46E5).withOpacity(0.15),
+                    backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.15),
                     child: Text(
                       studentInitial,
                       style: GoogleFonts.nunito(
@@ -226,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.1),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -256,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white.withOpacity(0.8),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -321,7 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.first.withOpacity(0.25),
+            color: gradient.colors.first.withValues(alpha: 0.25),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -405,7 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? null
                               : [
                                   BoxShadow(
-                                    color: AppGradients.cuet.colors.first.withOpacity(0.3),
+                                    color: AppGradients.cuet.colors.first.withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   )
@@ -449,6 +445,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: 'My Courses',
         subtitle: _profile?.selectedCourse ?? 'View enrolled courses',
         onTap: () => context.go('/courses'),
+      ),
+      MenuItemData(
+        icon: Iconsax.message_question,
+        iconColor: const Color(0xFF7C3AED),
+        title: 'My Doubts',
+        subtitle: 'View asked questions',
+        onTap: () => context.push('/my-doubts'),
+      ),
+      MenuItemData(
+        icon: Iconsax.box,
+        iconColor: const Color(0xFF10B981),
+        title: 'My Test Packages',
+        subtitle: 'View purchased packages',
+        onTap: () => context.push('/my-packages'),
       ),
       MenuItemData(
         icon: isThemeDark ? Iconsax.sun_1 : Iconsax.moon,
@@ -505,12 +515,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: item.isLogout
-                    ? const Color(0xFFDC2626).withOpacity(0.04)
+                    ? const Color(0xFFDC2626).withValues(alpha: 0.04)
                     : cardBgColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: item.isLogout
-                      ? const Color(0xFFDC2626).withOpacity(0.2)
+                      ? const Color(0xFFDC2626).withValues(alpha: 0.2)
                       : (isDark ? AppColors.darkBorder : const Color(0xFFE5E7EB)),
                 ),
               ),
@@ -520,7 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: item.iconColor.withOpacity(0.12),
+                    color: item.iconColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(item.icon, color: item.iconColor, size: 18),
@@ -540,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 trailing: const Icon(Iconsax.arrow_right_3, size: 16, color: Colors.grey),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -647,9 +657,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
+              final provider = Provider.of<UserProvider>(context, listen: false);
               await AuthService().signOut();
-              if (mounted) {
-                await Provider.of<UserProvider>(context, listen: false).logout();
+              await provider.logout();
+              if (context.mounted) {
                 context.go('/login');
               }
             },

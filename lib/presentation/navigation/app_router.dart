@@ -17,8 +17,19 @@ import '../screens/tests/tests_screen.dart';
 import '../screens/tests/test_attempt_screen.dart';
 import '../screens/tests/test_result_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
+import '../screens/profile/downloads_screen.dart';
+import '../screens/doubts/ask_doubt_screen.dart';
+import '../screens/doubts/my_doubts_screen.dart';
 import '../screens/leaderboard/leaderboard_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
+import '../screens/auth/account_blocked_screen.dart';
 import 'bottom_nav.dart';
+import '../screens/payment/checkout_screen.dart';
+import '../screens/payment/enrollment_success_screen.dart';
+import '../screens/payment/payment_pending_screen.dart';
+import '../screens/packages/test_packages_screen.dart';
+import '../screens/packages/my_packages_screen.dart';
 
 class AppRouter {
   static const String splash = '/splash';
@@ -36,6 +47,8 @@ class AppRouter {
   static const String testResult = '/result/:id';
   static const String profile = '/profile';
   static const String leaderboard = '/leaderboard';
+  static const String notifications = '/notifications';
+  static const String blocked = '/blocked';
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,
@@ -59,6 +72,88 @@ class AppRouter {
       GoRoute(
         path: completeProfile,
         builder: (context, state) => const CompleteProfileScreen(),
+      ),
+
+      // Blocked Screen
+      GoRoute(
+        path: blocked,
+        builder: (context, state) => const AccountBlockedScreen(),
+      ),
+
+      // Top-level video player route (so /video/:id is valid)
+      GoRoute(
+        path: '/video/:id',
+        builder: (context, state) {
+          final videoId = state.pathParameters['id'] ?? '';
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return VideoPlayerScreen(
+            videoId: videoId,
+            videoUrl: extra['videoUrl'] as String?,
+            title: extra['title'] as String?,
+            courseId: extra['courseId'] as String?,
+          );
+        },
+      ),
+
+      // Top-level doubts routes
+      GoRoute(
+        path: '/ask-doubt',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return AskDoubtScreen(
+            courseId: extra['courseId'],
+            courseTitle: extra['courseTitle'],
+            videoId: extra['videoId'],
+            videoTitle: extra['videoTitle'],
+          );
+        },
+      ),
+      GoRoute(
+        path: '/my-doubts',
+        builder: (context, state) => const MyDoubtsScreen(),
+      ),
+      GoRoute(
+        path: '/checkout',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return CheckoutScreen(
+            itemType: extra['itemType'] as String,
+            itemId: extra['itemId'] as String,
+            itemTitle: extra['itemTitle'] as String,
+            originalPrice: extra['originalPrice'] as double,
+            courseId: extra['courseId'] as String?,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/enrollment-success',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return EnrollmentSuccessScreen(
+            itemTitle: extra['itemTitle'] as String,
+            isFree: extra['isFree'] as bool,
+            itemId: extra['itemId'] as String,
+            itemType: extra['itemType'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/payment-pending',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return PaymentPendingScreen(
+            itemTitle: extra['itemTitle'] as String,
+            amount: extra['amount'] as double,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/test-packages',
+        builder: (context, state) => const TestPackagesScreen(),
+      ),
+      GoRoute(
+        path: '/my-packages',
+        builder: (context, state) => const MyPackagesScreen(),
       ),
 
       // Bottom Navigation Shell Route
@@ -98,7 +193,13 @@ class AppRouter {
                 path: 'video/:id',
                 builder: (context, state) {
                   final videoId = state.pathParameters['id'] ?? '';
-                  return VideoPlayerScreen(videoId: videoId);
+                  final extra = state.extra as Map<String, dynamic>? ?? {};
+                  return VideoPlayerScreen(
+                    videoId: videoId,
+                    videoUrl: extra['videoUrl'] as String?,
+                    title: extra['title'] as String?,
+                    courseId: extra['courseId'] as String?,
+                  );
                 },
               ),
               // Embedded live viewer
@@ -148,12 +249,31 @@ class AppRouter {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                builder: (context, state) => const EditProfileScreen(),
+              ),
+              GoRoute(
+                path: 'downloads',
+                builder: (context, state) => const DownloadsScreen(),
+              ),
+              GoRoute(
+                path: 'doubts',
+                builder: (context, state) => const MyDoubtsScreen(),
+              ),
+            ],
           ),
 
           // Leaderboard (accessible from profile/tests)
           GoRoute(
             path: '/leaderboard',
             builder: (context, state) => const LeaderboardScreen(),
+          ),
+          // Notifications
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
           ),
         ],
       ),
@@ -253,5 +373,9 @@ extension GoRouterX on GoRouter {
 
   void pushTestResult(String resultId) {
     push('/tests/result/$resultId');
+  }
+
+  void pushNotifications() {
+    push('/notifications');
   }
 }

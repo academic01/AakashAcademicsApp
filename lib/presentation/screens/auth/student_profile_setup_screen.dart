@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 
-import '../../../data/models/student_profile.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/services/student_profile_service.dart';
 import '../../../providers/user_provider.dart';
@@ -29,35 +28,6 @@ class _StudentProfileSetupScreenState extends State<StudentProfileSetupScreen> {
   String? _selectedCourse;
   String? _selectedExam;
   bool _isSaving = false;
-
-  final List<String> _classOptions = [
-    'Class 6',
-    'Class 7',
-    'Class 8',
-    'Class 9',
-    'Class 10',
-    'Class 11 (Science)',
-    'Class 11 (Commerce)',
-    'Class 11 (Humanities)',
-    'Class 12 (Science)',
-    'Class 12 (Commerce)',
-    'Class 12 (Humanities)',
-    'Graduated',
-  ];
-
-  final List<String> _examOptions = [
-    'Class Boards (School)',
-    'Class Boards (XI-XII)',
-    'CUET 2026',
-    'SSC CGL',
-    'SSC CHSL',
-    'Railway NTPC',
-    'Railway Group D',
-    'DSSSB',
-    'JEE Mains (Coming Soon)',
-    'NEET UG (Coming Soon)',
-    'Other',
-  ];
 
   @override
   void initState() {
@@ -176,48 +146,6 @@ class _StudentProfileSetupScreenState extends State<StudentProfileSetupScreen> {
         ),
       );
     }
-  }
-
-  List<String> _getCourseOptions() {
-    if (_selectedClass == null) {
-      return [
-        'School Success Program (VI-X)',
-        'Senior Secondary Program (XI-XII)',
-        'CUET 2026 Preparation',
-        'Government Jobs Bundle',
-      ];
-    }
-
-    if (_selectedClass!.contains('Class 6') ||
-        _selectedClass!.contains('Class 7') ||
-        _selectedClass!.contains('Class 8') ||
-        _selectedClass!.contains('Class 9') ||
-        _selectedClass!.contains('Class 10')) {
-      return [
-        'School Success Program (VI-X)',
-        'Mathematics Foundation',
-        'Science Foundation',
-        'All Subjects Package',
-      ];
-    }
-
-    if (_selectedClass!.contains('11') || _selectedClass!.contains('12')) {
-      return [
-        'Senior Secondary Program (XI-XII)',
-        'Science Stream Complete',
-        'Commerce Stream Complete',
-        'Humanities Stream Complete',
-        'CUET 2026 Preparation',
-      ];
-    }
-
-    return [
-      'SSC CGL Complete Course',
-      'Railway NTPC Preparation',
-      'DSSSB Full Preparation',
-      'Government Jobs Bundle',
-      'CUET 2026 Preparation',
-    ];
   }
 
   @override

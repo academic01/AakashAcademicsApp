@@ -33,7 +33,6 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
     super.initState();
     _pageController = PageController();
     _loadTestData();
-    _startTimer();
   }
 
   @override
@@ -78,6 +77,9 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
           _questions = qList;
           _loading = false;
         });
+        if (_questions.isNotEmpty) {
+          _startTimer();
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -149,9 +151,55 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
 
     if (_questions.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(_testTitle)),
-        body: const Center(
-          child: Text('No questions found for this test.'),
+        appBar: AppBar(
+          title: Text(_testTitle),
+          backgroundColor: const Color(0xFF0D2240),
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.amber,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'This test is being prepared',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D2240),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Questions are not available yet for this test. Please check back later.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D2240),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -160,8 +208,10 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
     final questionId = currentQuestion['id'] as String;
     final selectedOption = _answers[questionId];
 
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         final exit = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -180,7 +230,9 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
             ],
           ),
         );
-        return exit ?? false;
+        if (exit == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -287,7 +339,7 @@ class _TestAttemptScreenState extends State<TestAttemptScreen> {
                                       width: isSelected ? 2 : 1,
                                     ),
                                     borderRadius: BorderRadius.circular(12),
-                                    color: isSelected ? const Color(0xFF0D2240).withOpacity(0.05) : Colors.white,
+                                    color: isSelected ? const Color(0xFF0D2240).withValues(alpha: 0.05) : Colors.white,
                                   ),
                                   child: RadioListTile<int>(
                                     value: i,

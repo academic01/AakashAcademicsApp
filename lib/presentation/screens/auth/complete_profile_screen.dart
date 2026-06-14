@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -67,6 +68,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _loadExistingData() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final userProvider = context.read<UserProvider>();
 
     setState(() {
@@ -251,6 +253,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       await prefs.setBool('profileComplete', true);
       await prefs.setBool('profileSkipped', false);
 
+      if (!mounted) return;
       final userProvider = context.read<UserProvider>();
       final currentUser = userProvider.user;
 

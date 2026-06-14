@@ -7,12 +7,12 @@ class StatPill extends StatelessWidget {
   final Color? color;
 
   const StatPill({
-    Key? key,
+    super.key,
     required this.emoji,
     required this.value,
     required this.label,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

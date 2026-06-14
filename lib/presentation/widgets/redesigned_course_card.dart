@@ -11,12 +11,12 @@ class RedesignedCourseCard extends StatefulWidget {
   final int index;
 
   const RedesignedCourseCard({
-    Key? key,
+    super.key,
     required this.course,
     required this.onTap,
     this.isEnrolled = false,
     this.index = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<RedesignedCourseCard> createState() => _RedesignedCourseCardState();
@@ -62,7 +62,7 @@ class _RedesignedCourseCardState extends State<RedesignedCourseCard> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -113,7 +113,7 @@ class _RedesignedCourseCardState extends State<RedesignedCourseCard> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
                               ),
@@ -157,7 +157,7 @@ class _RedesignedCourseCardState extends State<RedesignedCourseCard> {
                       children: [
                         CircleAvatar(
                           radius: 12,
-                          backgroundColor: gradient.colors.first.withOpacity(0.2),
+                          backgroundColor: gradient.colors.first.withValues(alpha: 0.2),
                           child: Text(
                             facultyName.isNotEmpty ? facultyName[0] : 'T',
                             style: TextStyle(
@@ -232,7 +232,7 @@ class _RedesignedCourseCardState extends State<RedesignedCourseCard> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.15),
+          color: Colors.grey.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
         ),
         child: const Row(
@@ -289,7 +289,7 @@ class _RedesignedCourseCardState extends State<RedesignedCourseCard> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.first.withOpacity(0.3),
+            color: gradient.colors.first.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

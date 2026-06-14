@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../core/constants/gradients.dart';
 
 class GradientCategoryCard extends StatefulWidget {
   final String categoryName;

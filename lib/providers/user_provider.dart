@@ -51,6 +51,7 @@ class UserProvider extends ChangeNotifier {
               : _user!.enrolledCourses,
           isProfileComplete:
               data['isProfileComplete'] ?? _user!.isProfileComplete,
+          referralCode: data['referralCode'] ?? _user!.referralCode,
         );
         _isProfileComplete = _user!.isProfileComplete;
         notifyListeners();

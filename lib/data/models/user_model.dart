@@ -16,6 +16,7 @@ class UserModel {
   final String rank;
   final List<String> enrolledCourses;
   final DateTime createdAt;
+  final String? referralCode;
 
   UserModel({
     required this.uid,
@@ -35,6 +36,7 @@ class UserModel {
     this.rank = 'Rookie',
     this.enrolledCourses = const [],
     required this.createdAt,
+    this.referralCode,
   });
 
   // Convert to JSON
@@ -57,6 +59,7 @@ class UserModel {
       'rank': rank,
       'enrolledCourses': enrolledCourses,
       'createdAt': createdAt.toIso8601String(),
+      'referralCode': referralCode,
     };
   }
 
@@ -82,6 +85,7 @@ class UserModel {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
+      referralCode: json['referralCode'],
     );
   }
 
@@ -99,6 +103,7 @@ class UserModel {
     int? streak,
     String? rank,
     List<String>? enrolledCourses,
+    String? referralCode,
   }) {
     return UserModel(
       uid: uid,
@@ -118,9 +123,10 @@ class UserModel {
       rank: rank ?? this.rank,
       enrolledCourses: enrolledCourses ?? this.enrolledCourses,
       createdAt: createdAt,
+      referralCode: referralCode ?? this.referralCode,
     );
   }
 
   @override
-  String toString() => 'UserModel(uid: $uid, phone: $phone, name: $name)';
+  String toString() => 'UserModel(uid: $uid, phone: $phone, name: $name, referralCode: $referralCode)';
 }

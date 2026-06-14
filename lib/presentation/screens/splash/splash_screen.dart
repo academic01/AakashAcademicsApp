@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../widgets/academy_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,6 +29,8 @@ class _SplashScreenState extends State<SplashScreen> {
       final onboardingComplete =
           prefs.getBool(StorageKeys.onboardingComplete) ?? false;
 
+      if (!mounted) return;
+
       if (!onboardingComplete) {
         context.go('/onboarding');
       } else if (isLoggedIn) {
@@ -43,56 +44,37 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF0F2F5),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const AcademyLogo(iconSize: 170, subtitleColor: Color(0xFF0D2240)),
-
-            const SizedBox(height: 8),
-
-            // Tagline
-            const Text(
-              'Your Rank. Your Rules.',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF888888),
-              ),
+            Image.asset(
+              'assets/images/logo.png',
+              width: 220,
+              height: 220,
+              fit: BoxFit.contain,
             ),
-
             const SizedBox(height: 48),
-
-            // Animated Loading Dots
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildAnimatedDot(0),
-                const SizedBox(width: 8),
-                _buildAnimatedDot(1),
-                const SizedBox(width: 8),
-                _buildAnimatedDot(2),
-              ],
+              children: List.generate(3, 
+                (i) => Container(
+                  width: 8, height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0D2240),
+                    shape: BoxShape.circle))
+                .animate(
+                  onPlay: (controller) => controller.repeat(),
+                  delay: Duration(milliseconds: i * 200))
+                .fadeIn(duration: const Duration(milliseconds: 600))
+                .then()
+                .fadeOut(duration: const Duration(milliseconds: 600))),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildAnimatedDot(int index) {
-    return Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D2240),
-            shape: BoxShape.circle,
-          ),
-        )
-        .animate(onPlay: (controller) => controller.repeat())
-        .fade(duration: 600.ms, delay: (index * 150).ms, begin: 0.3, end: 1.0)
-        .then()
-        .fade(duration: 600.ms, begin: 1.0, end: 0.3);
   }
 }

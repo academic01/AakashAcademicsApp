@@ -2,7 +2,7 @@
     <application
         android:label="Aakash Academics"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_launcher_brand"
+        android:icon="@mipmap/ic_launcher"
         android:roundIcon="@drawable/ic_launcher_brand">
         <activity
             android:name=".MainActivity"

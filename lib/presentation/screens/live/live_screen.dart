@@ -7,6 +7,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../core/constants/gradients.dart';
 import '../../../core/utils/content_filter.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../../data/services/database_service.dart';
 import '../../../data/services/student_profile_service.dart';
 import '../../../data/services/user_service.dart';
@@ -43,12 +45,25 @@ class _LiveScreenState extends State<LiveScreen> {
 
   Future<void> _loadUserProfile() async {
     try {
-      final profile = await _studentProfileService.loadProfile();
-      if (profile == null) return;
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final user = userProvider.user;
 
-      final category = getCategoryFromProfile(
-        profile.selectedCourse,
-        profile.classLevel,
+      String? targetCourse = user?.targetCourse;
+      String? targetExam = user?.targetExam;
+      String? currentClass = user?.currentClass;
+
+      if (user == null) {
+        final profile = await _studentProfileService.loadProfile();
+        if (profile != null) {
+          targetCourse = profile.selectedCourse;
+          targetExam = profile.classLevel;
+        }
+      }
+
+      final category = ContentFilter.getCategoryFromProfile(
+        targetCourse: targetCourse,
+        targetExam: targetExam,
+        currentClass: currentClass,
       );
       if (category == null) return;
 
@@ -251,16 +266,20 @@ class _LiveScreenState extends State<LiveScreen> {
                     return {'id': doc.id, ...data};
                   }).toList();
 
-                  // Sort matching student's preferred course
+                  // Sort: matching category first
                   if (_userCategory != null) {
                     classes.sort((a, b) {
-                      final aMatch = (a['category'] ?? '').toString().toLowerCase() ==
-                          _userCategory!.toLowerCase();
-                      final bMatch = (b['category'] ?? '').toString().toLowerCase() ==
-                          _userCategory!.toLowerCase();
-                      if (aMatch && !bMatch) return -1;
-                      if (!aMatch && bMatch) return 1;
-                      return 0;
+                      final aMatches = ContentFilter.classMatchesCategory(a, _userCategory);
+                      final bMatches = ContentFilter.classMatchesCategory(b, _userCategory);
+                      if (aMatches && !bMatches) return -1;
+                      if (!aMatches && bMatches) return 1;
+                      
+                      final aScheduled = a['scheduledAt'] as Timestamp?;
+                      final bScheduled = b['scheduledAt'] as Timestamp?;
+                      if (aScheduled == null && bScheduled == null) return 0;
+                      if (aScheduled == null) return 1;
+                      if (bScheduled == null) return -1;
+                      return aScheduled.compareTo(bScheduled);
                     });
                   }
 
@@ -366,10 +385,10 @@ class _LiveScreenState extends State<LiveScreen> {
                                               const SizedBox(width: 8),
                                               Text(
                                                 faculty,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,
-                                                  color: Colors.grey,
+                                                  color: isDark ? AppColors.textMutedDark : AppColors.textMuted,
                                                 ),
                                               ),
                                             ],
@@ -378,25 +397,25 @@ class _LiveScreenState extends State<LiveScreen> {
                                           // Timing Footer Info
                                           Row(
                                             children: [
-                                              const Icon(Icons.calendar_month_rounded, size: 14, color: Colors.grey),
+                                              Icon(Icons.calendar_month_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMuted),
                                               const SizedBox(width: 4),
                                               Text(
                                                 _formatDate(scheduledTime),
-                                                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                                style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontWeight: FontWeight.w500),
                                               ),
                                               const SizedBox(width: 12),
-                                              const Icon(Icons.access_time_filled_rounded, size: 14, color: Colors.grey),
+                                              Icon(Icons.access_time_filled_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMuted),
                                               const SizedBox(width: 4),
                                               Text(
                                                 _formatTime(scheduledTime),
-                                                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                                style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontWeight: FontWeight.w500),
                                               ),
                                               const SizedBox(width: 12),
-                                              const Icon(Icons.timer_rounded, size: 14, color: Colors.grey),
+                                              Icon(Icons.timer_rounded, size: 14, color: isDark ? AppColors.textMutedDark : AppColors.textMuted),
                                               const SizedBox(width: 4),
                                               Text(
                                                 '${duration}m',
-                                                style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                                style: TextStyle(fontSize: 11, color: isDark ? AppColors.textMutedDark : AppColors.textMuted, fontWeight: FontWeight.w500),
                                               ),
                                             ],
                                           ),
@@ -405,7 +424,7 @@ class _LiveScreenState extends State<LiveScreen> {
                                             const SizedBox(height: 14),
                                             SizedBox(
                                               width: double.infinity,
-                                              height: 38,
+                                              height: 44,
                                               child: isLive
                                                   ? Container(
                                                       decoration: BoxDecoration(
@@ -428,6 +447,7 @@ class _LiveScreenState extends State<LiveScreen> {
                                                           backgroundColor: Colors.transparent,
                                                           shadowColor: Colors.transparent,
                                                           foregroundColor: Colors.white,
+                                                          padding: EdgeInsets.zero,
                                                           shape: RoundedRectangleBorder(
                                                             borderRadius: BorderRadius.circular(12),
                                                           ),
@@ -435,7 +455,7 @@ class _LiveScreenState extends State<LiveScreen> {
                                                         child: const Text(
                                                           'Join Live Now',
                                                           style: TextStyle(
-                                                            fontSize: 12,
+                                                            fontSize: 13,
                                                             fontWeight: FontWeight.w800,
                                                           ),
                                                         ),
@@ -449,6 +469,7 @@ class _LiveScreenState extends State<LiveScreen> {
                                                       style: ElevatedButton.styleFrom(
                                                         backgroundColor: isDark ? const Color(0xFF334155) : Colors.grey[200],
                                                         foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                                                        padding: EdgeInsets.zero,
                                                         shape: RoundedRectangleBorder(
                                                           borderRadius: BorderRadius.circular(12),
                                                         ),
@@ -457,7 +478,7 @@ class _LiveScreenState extends State<LiveScreen> {
                                                       child: const Text(
                                                         'Watch Recording',
                                                         style: TextStyle(
-                                                          fontSize: 12,
+                                                          fontSize: 13,
                                                           fontWeight: FontWeight.w800,
                                                         ),
                                                       ),
@@ -565,7 +586,7 @@ class _LiveScreenState extends State<LiveScreen> {
 
     return SizedBox(
       width: double.infinity,
-      height: 38,
+      height: 44,
       child: ElevatedButton.icon(
         onPressed: isRegistered
             ? null
@@ -588,11 +609,12 @@ class _LiveScreenState extends State<LiveScreen> {
               },
         icon: Icon(
           isRegistered ? Icons.notifications_active : Icons.notifications_none,
-          size: 14,
+          size: 15,
           color: isRegistered ? Colors.green : Colors.white,
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: isRegistered ? Colors.grey.withOpacity(0.2) : const Color(0xFF7C3AED),
+          padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -600,9 +622,9 @@ class _LiveScreenState extends State<LiveScreen> {
         label: Text(
           isRegistered ? 'Reminder Set' : 'Set Reminder',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: isRegistered ? Colors.grey : Colors.white,
+            color: isRegistered ? (isDark ? Colors.white38 : Colors.grey) : Colors.white,
           ),
         ),
       ),

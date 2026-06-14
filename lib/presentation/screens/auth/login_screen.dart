@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/user_service.dart';
 import '../../../providers/user_provider.dart';
@@ -162,44 +164,45 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isVerifying = true);
 
     try {
-      final credential = PhoneAuthProvider.credential(
+      final result = await _authService.verifyOTP(
         verificationId: _verificationId!,
-        smsCode: otp,
+        otp: otp,
       );
 
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(
-        credential,
-      );
-      final firebaseUser = userCredential.user;
-      if (firebaseUser != null) {
-        try {
-          await UserService().ensureUserDocument(firebaseUser);
-        } catch (e) {
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final user = result['user'] as UserModel;
+        
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (userDoc.exists && userDoc.data()?['isActive'] == false) {
+          await _authService.signOut();
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to initialize user document: ${e.toString()}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            context.go('/blocked');
           }
+          return;
         }
-      }
-      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? true;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(StorageKeys.isLoggedIn, true);
-      await prefs.setString(StorageKeys.userId, userCredential.user!.uid);
-      await prefs.setBool(StorageKeys.profileComplete, !isNewUser);
-
-      if (mounted) {
-        if (isNewUser) {
-          context.go('/complete-profile');
-        } else {
-          final profileDone =
-              prefs.getBool(StorageKeys.profileComplete) ?? false;
-          context.go(profileDone ? '/home' : '/complete-profile');
+        if (mounted) {
+          context.read<UserProvider>().setUser(user);
+          _goAfterAuth(user.isProfileComplete);
         }
+      } else {
+        setState(() => _isVerifying = false);
+        _showSnackBar(
+          (result['error'] as String?) ?? 'Verification failed',
+          isError: true,
+        );
+        for (var c in _otpControllers) {
+          c.clear();
+        }
+        _focusNodes[0].requestFocus();
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _isVerifying = false);
@@ -211,9 +214,8 @@ class _LoginScreenState extends State<LoginScreen> {
         message = 'OTP expired. Please request new OTP.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
+      if (!mounted) return;
+      _showSnackBar(message, isError: true);
 
       for (var c in _otpControllers) {
         c.clear();
@@ -253,6 +255,21 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
           await UserService().ensureUserDocument(firebaseUser);
+          
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(canonicalUid)
+              .get();
+          
+          if (userDoc.exists && userDoc.data()?['isActive'] == false) {
+            await FirebaseAuth.instance.signOut();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.clear();
+            if (mounted) {
+              context.go('/blocked');
+            }
+            return;
+          }
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -264,6 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       }
+      if (!mounted) return;
       context.read<UserProvider>().setUser(user);
       _goAfterAuth(user.isProfileComplete);
       return;
@@ -329,6 +347,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF0D2240);
+    final secondaryTextColor = isDark ? Colors.white70 : const Color(0xFF666666);
+    final buttonColor = isDark ? const Color(0xFFF5A623) : const Color(0xFF0D2240);
+    final buttonTextColor = isDark ? const Color(0xFF0A1628) : Colors.white;
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -375,45 +399,46 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  // Center content
                   Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 110,
+                          height: 110,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'A',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
                               ),
-                            ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                         const SizedBox(height: 12),
                         const Text(
                           'AAKASH ACADEMICS',
                           style: TextStyle(
+                            color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 2,
+                            letterSpacing: 2.0,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Your Rank. Your Rules.',
                           style: TextStyle(
+                            color: Colors.white.withOpacity(0.70),
                             fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -438,19 +463,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Welcome Back! 👋',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF0D2240),
+                            color: textColor,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'Login to continue learning',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF888888),
+                            color: secondaryTextColor,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -460,12 +485,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Mobile Number',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF666666),
+                                  color: secondaryTextColor,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -544,33 +569,31 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _sendOTP,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0D2240),
-                                    disabledBackgroundColor: const Color(
-                                      0xFF0D2240,
-                                    ).withValues(alpha: 0.5),
+                                    backgroundColor: buttonColor,
+                                    disabledBackgroundColor: buttonColor.withOpacity(0.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(26),
                                     ),
                                     elevation: 0,
                                   ),
                                   child: _isLoading
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           height: 20,
                                           width: 20,
                                           child: CircularProgressIndicator(
                                             valueColor:
                                                 AlwaysStoppedAnimation<Color>(
-                                                  Colors.white,
+                                                  buttonTextColor,
                                                 ),
                                             strokeWidth: 2,
                                           ),
                                         )
-                                      : const Text(
+                                      : Text(
                                           'Send OTP',
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w700,
-                                            color: Colors.white,
+                                            color: buttonTextColor,
                                           ),
                                         ),
                                 ),
@@ -705,10 +728,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: ElevatedButton(
                                   onPressed: _isVerifying ? null : _verifyOTP,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0D2240),
-                                    disabledBackgroundColor: const Color(
-                                      0xFF0D2240,
-                                    ).withValues(alpha: 0.5),
+                                    backgroundColor: buttonColor,
+                                    disabledBackgroundColor: buttonColor.withOpacity(0.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(26),
                                     ),
@@ -719,34 +740,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            const SizedBox(
+                                            SizedBox(
                                               height: 20,
                                               width: 20,
                                               child: CircularProgressIndicator(
                                                 valueColor:
                                                     AlwaysStoppedAnimation<
                                                       Color
-                                                    >(Colors.white),
+                                                    >(buttonTextColor),
                                                 strokeWidth: 2,
                                               ),
                                             ),
                                             const SizedBox(width: 12),
-                                            const Text(
+                                            Text(
                                               'Verifying...',
                                               style: TextStyle(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w700,
-                                                color: Colors.white,
+                                                color: buttonTextColor,
                                               ),
                                             ),
                                           ],
                                         )
-                                      : const Text(
+                                      : Text(
                                           'Verify & Login',
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w700,
-                                            color: Colors.white,
+                                            color: buttonTextColor,
                                           ),
                                         ),
                                 ),
@@ -816,12 +837,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                const Text(
+                                Text(
                                   'Continue with Google',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF0D2240),
+                                    color: textColor,
                                   ),
                                 ),
                               ],
@@ -845,10 +866,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 TextSpan(
                                   text: 'Create Account',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0D2240),
+                                    color: isDark ? const Color(0xFFF5A623) : const Color(0xFF0D2240),
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {

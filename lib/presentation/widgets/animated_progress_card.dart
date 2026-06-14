@@ -8,10 +8,10 @@ class AnimatedProgressCard extends StatelessWidget {
   final String title;
 
   const AnimatedProgressCard({
-    Key? key,
+    super.key,
     required this.progress,
     this.title = "Today's Goal",
-  }) : super(key: key);
+  });
 
   String _getMotivationalText(double pct) {
     if (pct <= 0.0) return "Let's start! 🚀";
@@ -33,7 +33,7 @@ class AnimatedProgressCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
