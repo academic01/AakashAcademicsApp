@@ -33,9 +33,18 @@ class _HomeScreenState extends State<HomeScreen> {
   StudentProfile? _profile;
   bool _announcementDismissed = false;
 
-  String _studentName = 'Student';
+  final CarouselSliderController _carouselController = CarouselSliderController();
+
+  String _displayName = 'Student';
   String? _userCategory;
-  bool _profileComplete = false;
+  bool _isProfileComplete = false;
+
+  final Map<String, int> _categoryToSlideIndex = {
+    'school': 0,
+    'senior': 1,
+    'govt': 2,
+    'cuet': 3,
+  };
 
   @override
   void initState() {
@@ -54,30 +63,83 @@ class _HomeScreenState extends State<HomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     
-    final doc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(uid)
-      .get();
-    
-    if (!doc.exists || doc.data() == null) return;
-    
-    final data = doc.data()!;
-    
-    if (mounted) {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      
+      if (!mounted) return;
+      if (!doc.exists || doc.data() == null) return;
+      
+      final data = doc.data()!;
+      debugPrint('=== HOME SCREEN ===');
+      debugPrint('UID: $uid');
+      debugPrint('Doc exists: ${doc.exists}');
+      debugPrint('All fields: $data');
+      
       setState(() {
-        _studentName = (data['name'] as String?)?.trim().isNotEmpty == true
-            ? data['name'] as String
+        final rawName = data['name'] as String? ??
+            data['displayName'] as String? ??
+            data['userName'] as String?;
+        
+        _displayName = (rawName != null && rawName.trim().isNotEmpty)
+            ? rawName.trim()
             : (data['phone'] as String? ?? 'Student');
         
-        _profileComplete = data['isProfileComplete'] as bool? ?? false;
+        _isProfileComplete = data['isProfileComplete'] as bool? ?? false;
         
         _userCategory = ContentFilter.getCategoryFromProfile(
           targetCourse: data['targetCourse'] as String?,
           targetExam: data['targetExam'] as String?,
           currentClass: data['currentClass'] as String?,
         );
+        
+        debugPrint('Name: $_displayName');
+        debugPrint('Category: $_userCategory');
+        debugPrint('Profile complete: $_isProfileComplete');
       });
+
+      if (_userCategory != null) {
+        final index = _categoryToSlideIndex[_userCategory] ?? 0;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _carouselController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user: $e');
     }
+  }
+
+  Stream<int> _getUnreadCount() async* {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      yield 0;
+      return;
+    }
+    
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    
+    final lastSeen = userDoc.data()?['lastSeenNotificationsAt'] as Timestamp?;
+    
+    Query query = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('target', isEqualTo: 'all');
+    
+    if (lastSeen != null) {
+      query = query.where('createdAt', isGreaterThan: lastSeen);
+    }
+    
+    yield* query.snapshots().map((snap) => snap.docs.length);
   }
 
   Future<void> _refreshDashboard() async {
@@ -89,8 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
-    final studentInitial = _profile?.initial ?? 'S';
-    final studentCourse = userProvider.user?.targetCourse ?? 'Complete profile';
+    
+    final nameToUse = (userProvider.user?.name?.trim().isNotEmpty == true)
+        ? userProvider.user!.name!
+        : _displayName;
+        
+    final studentInitial = _profile?.initial ?? 
+        (nameToUse.isNotEmpty ? nameToUse[0].toUpperCase() : 'S');
 
     final user = userProvider.user;
     final xp = user?.xp ?? 0;
@@ -203,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                _studentName,
+                                nameToUse,
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -211,10 +278,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                studentCourse,
+                                _isProfileComplete
+                                    ? (_userCategory != null
+                                        ? ContentFilter.getCategoryDisplayName(_userCategory)
+                                        : '')
+                                    : 'Complete profile',
                                 style: TextStyle(
+                                  color: _isProfileComplete
+                                      ? secondaryTextColor
+                                      : const Color(0xFFF5A623), // Yellow color if incomplete
                                   fontSize: 11,
-                                  color: secondaryTextColor,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -255,42 +328,39 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         else
                           StreamBuilder<int>(
-                            stream: UserService().unreadNotificationCount(user!.uid),
+                            stream: _getUnreadCount(),
                             builder: (context, snapshot) {
                               final count = snapshot.data ?? 0;
                               return Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.notifications_none_rounded,
+                                  GestureDetector(
+                                    onTap: () => context.push('/notifications'),
+                                    child: Icon(
+                                      Icons.notifications_outlined,
                                       color: primaryTextColor,
+                                      size: 26,
                                     ),
-                                    onPressed: () => context.push('/notifications'),
                                   ),
                                   if (count > 0)
                                     Positioned(
-                                      right: 8,
-                                      top: 8,
+                                      right: -4,
+                                      top: -4,
                                       child: Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          minWidth: 16,
-                                          minHeight: 16,
+                                        width: 18,
+                                        height: 18,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEF4444),
+                                          shape: BoxShape.circle,
                                         ),
                                         child: Center(
                                           child: Text(
                                             count > 9 ? '9+' : '$count',
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w800,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
                                             ),
-                                            textAlign: TextAlign.center,
                                           ),
                                         ),
                                       ),
@@ -512,6 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           : allCategoryCards.map((item) => item.$2).toList();
 
                       return CarouselSlider(
+                        carouselController: _carouselController,
                         options: CarouselOptions(
                           height: 180,
                           viewportFraction: 0.88,
@@ -643,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .where('status', isEqualTo: 'active');
     
     // If user has a category, filter by it — NO isFeatured requirement
-    if (_userCategory != null && _profileComplete) {
+    if (_userCategory != null && _isProfileComplete) {
       query = query.where('category', isEqualTo: _userCategory);
     }
     
@@ -672,7 +743,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Section header
-            if (_profileComplete && _userCategory != null)
+            if (_isProfileComplete && _userCategory != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(

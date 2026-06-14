@@ -32,6 +32,9 @@ class UserService {
   Future<void> ensureUserDocument(User firebaseUser) async {
     final ref = _firestore.collection('users').doc(firebaseUser.uid);
     final snapshot = await ref.get();
+    final refCode = firebaseUser.uid.length >= 6
+        ? firebaseUser.uid.substring(0, 6).toUpperCase()
+        : firebaseUser.uid.toUpperCase();
     
     if (!snapshot.exists) {
       // NEW USER - create full document
@@ -55,6 +58,7 @@ class UserService {
         'role': 'student',
         'isActive': true,
         'loginCount': 1,
+        'referralCode': refCode,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
@@ -64,6 +68,9 @@ class UserService {
     } else {
       // RETURNING USER - update login tracking + streak
       await _updateLoginAndStreak(ref, snapshot.data()!);
+      if (snapshot.data()?['referralCode'] == null) {
+        await ref.update({'referralCode': refCode});
+      }
     }
   }
 
@@ -93,6 +100,37 @@ class UserService {
       'lastLoginAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'streak': streak,
+    });
+  }
+
+  Stream<int> unreadNotificationCount(String uid) {
+    return _firestore
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .asyncExpand((userDoc) {
+        final lastSeen = userDoc.data()?['lastSeenNotificationsAt'] as Timestamp?;
+        
+        Query query = _firestore.collection('notifications')
+          .where('target', whereIn: [
+            'all',
+            'All Students',
+            'ALL',
+            'everyone',
+            uid,
+          ]);
+        
+        if (lastSeen != null) {
+          query = query.where('createdAt', isGreaterThan: lastSeen);
+        }
+        
+        return query.snapshots().map((snap) => snap.docs.length);
+      });
+  }
+
+  Future<void> updateLastSeenNotifications(String uid) async {
+    await _firestore.collection('users').doc(uid).update({
+      'lastSeenNotificationsAt': FieldValue.serverTimestamp(),
     });
   }
 
